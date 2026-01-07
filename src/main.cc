@@ -49,6 +49,9 @@ void update_buffer(void)
             auto dist = _text_buffer.cursor - back_nl;
             auto back2_nl = _text_buffer.buffer.rfind('\n', back_nl - 1);
             _text_buffer.cursor = (back2_nl == std::string::npos ? -1 : back2_nl) + dist;
+        } else if (k == KEY_END){
+            auto nl = _text_buffer.buffer.find('\n', _text_buffer.cursor);
+            _text_buffer.cursor = (nl == std::string::npos ? _text_buffer.buffer.size() : nl);
         }
 
     }
