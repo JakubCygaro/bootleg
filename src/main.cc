@@ -15,15 +15,18 @@ static TextBuffer _text_buffer = {};
 void update_buffer(void)
 {
     int k = 0;
+    static double bs_t = 0;
+    if (IsKeyDown(KEY_BACKSPACE) && !_text_buffer.buffer.empty() && _text_buffer.cursor > 0 && bs_t <= GetTime()) {
+        _text_buffer.buffer.erase(--_text_buffer.cursor, 1);
+        bs_t = GetTime() + .05;
+    }
     while ((k = GetKeyPressed())) {
-        if (k == KEY_BACKSPACE && !_text_buffer.buffer.empty()) {
-            _text_buffer.buffer.erase(--_text_buffer.cursor, 1);
-        } else if (k == KEY_ENTER) {
+        if (k == KEY_ENTER) {
             _text_buffer.buffer.push_back('!');
             std::shift_right(_text_buffer.buffer.begin() + _text_buffer.cursor, _text_buffer.buffer.end(), 1);
             _text_buffer.buffer[_text_buffer.cursor++] = static_cast<char>('\n');
         } else if (k == KEY_TAB) {
-            for(auto i = 0; i < 4; i++) {
+            for (auto i = 0; i < 4; i++) {
                 _text_buffer.buffer.push_back('!');
                 std::shift_right(_text_buffer.buffer.begin() + _text_buffer.cursor, _text_buffer.buffer.end(), 1);
                 _text_buffer.buffer[_text_buffer.cursor++] = static_cast<char>(' ');
@@ -32,7 +35,22 @@ void update_buffer(void)
             _text_buffer.cursor++;
         } else if (k == KEY_LEFT) {
             _text_buffer.cursor--;
+        } else if (k == KEY_DOWN) {
+            auto nl = _text_buffer.buffer.find('\n', _text_buffer.cursor);
+            if(nl == std::string::npos) break;
+            long back_nl = _text_buffer.buffer.rfind('\n', _text_buffer.cursor);
+            auto dist = _text_buffer.cursor - (back_nl == std::string::npos ? -1 : back_nl);
+            _text_buffer.cursor = nl + dist;
+            auto next_nl = _text_buffer.buffer.find('\n', _text_buffer.cursor);
+            _text_buffer.cursor = _text_buffer.cursor  > next_nl ? next_nl : _text_buffer.cursor;
+        } else if (k == KEY_UP) {
+            auto back_nl = _text_buffer.buffer.rfind('\n', _text_buffer.cursor);
+            if(back_nl == std::string::npos) break;
+            auto dist = _text_buffer.cursor - back_nl;
+            auto back2_nl = _text_buffer.buffer.rfind('\n', back_nl - 1);
+            _text_buffer.cursor = (back2_nl == std::string::npos ? -1 : back2_nl) + dist;
         }
+
     }
     _text_buffer.cursor = _text_buffer.cursor > _text_buffer.buffer.size() ? _text_buffer.buffer.size() : _text_buffer.cursor;
     _text_buffer.cursor = _text_buffer.cursor < 0 ? 0 : _text_buffer.cursor;
@@ -89,7 +107,7 @@ int main(void)
 {
     InitWindow(800, 600, "bootleg");
     SetTargetFPS(60);
-    _text_buffer.buffer = "Welcome to Bootleg";
+    _text_buffer.buffer = "Welcome to Bootleg\nWelcome to Bootleg\nWelcome to Bootleg\nWelcome to Bootleg\n";
     DEFER(CloseWindow());
     while (!WindowShouldClose()) {
         update_buffer();
