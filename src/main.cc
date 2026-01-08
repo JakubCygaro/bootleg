@@ -1,62 +1,187 @@
 #include "defer.hpp"
 #include <algorithm>
+#include <iostream>
+#include <optional>
+#include <ostream>
 #include <print>
 #include <raylib.h>
+
+#define CTRL true
+#define META true
+#define SHIFT true
+#define NO false
+#define KEYS(k, KEY, C, M, S) (k.key == KEY && k.control == C && k.meta == M && k.shift == S)
+#define KEYSDOWN(k) (IsKeyDown(k.key) && (k.control ? IsKeyDown(KEY_LEFT_CONTROL) : true) && (k.))
 
 constexpr const int FONT_SIZE = 24;
 
 struct TextBuffer {
     std::string buffer = {};
     long int cursor = 0;
+    void normalize_cursor_position(void)
+    {
+        cursor = cursor > (long)buffer.size() ? (long)buffer.size() : cursor;
+        cursor = cursor < 0 ? 0 : cursor;
+    }
+    void move_cursor_left(long amount = 1)
+    {
+        move_cursor(-amount);
+    }
+    void move_cursor_right(long amount = 1)
+    {
+        move_cursor(amount);
+    }
+    void move_cursor(long amount)
+    {
+        cursor += amount;
+    }
+    void move_cursor_down(void)
+    {
+        auto nl = buffer.find('\n', cursor);
+        if (nl == std::string::npos)
+            return;
+        long back_nl = buffer.rfind('\n', cursor);
+        auto dist = cursor - (back_nl == std::string::npos ? -1 : back_nl);
+        cursor = nl + dist;
+        auto next_nl = buffer.find('\n', cursor);
+        cursor = cursor > next_nl ? next_nl : cursor;
+    }
+    void move_cursor_up(void)
+    {
+        auto back_nl = buffer.rfind('\n', cursor);
+        if (back_nl == std::string::npos)
+            return;
+        auto dist = cursor - back_nl;
+        auto back2_nl = buffer.rfind('\n', back_nl - 1);
+        cursor = (back2_nl == std::string::npos ? -1 : back2_nl) + dist;
+    }
+    void delete_characters(unsigned int amount = 1)
+    {
+        cursor -= amount;
+        buffer.erase(cursor, amount);
+    }
 };
 
 static TextBuffer _text_buffer = {};
 
+struct Keys {
+    bool control {};
+    bool meta {};
+    bool shift {};
+    int key {};
+};
+
+std::optional<Keys> get_keys_pressed(void)
+{
+    int k;
+    std::optional<Keys> ret {};
+    while ((k = GetKeyPressed())) {
+        ret = ret.has_value() ? ret : Keys {};
+        switch (k) {
+        case KEY_LEFT_CONTROL:
+        case KEY_RIGHT_CONTROL:
+            ret.value().control = true;
+            break;
+        case KEY_LEFT_SHIFT:
+        case KEY_RIGHT_SHIFT:
+            ret.value().shift = true;
+            break;
+        case KEY_LEFT_ALT:
+        case KEY_RIGHT_ALT:
+            ret.value().meta = true;
+            break;
+        default:
+            ret.value().key = k;
+            break;
+        }
+    }
+    return ret;
+}
+
+void handle_keys_pressed(Keys keys)
+{
+    static Keys last_keys = {};
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyDown(KEY_RIGHT)) {
+    }
+    if (KEYS(keys, KEY_RIGHT, NO, NO, NO)) {
+        _text_buffer.move_cursor_right();
+    }
+    if (KEYS(keys, KEY_LEFT, NO, NO, NO)) {
+        _text_buffer.move_cursor_left();
+    }
+    if (KEYS(keys, KEY_UP, NO, NO, NO)) {
+        _text_buffer.move_cursor_up();
+    }
+    if (KEYS(keys, KEY_DOWN, NO, NO, NO)) {
+        _text_buffer.move_cursor_down();
+    }
+    if (KEYS(keys, KEY_BACKSPACE, NO, NO, NO)) {
+        _text_buffer.delete_characters();
+    }
+}
+
 void update_buffer(void)
 {
-    int k = 0;
-    static double bs_t = 0;
-    if (IsKeyDown(KEY_BACKSPACE) && !_text_buffer.buffer.empty() && _text_buffer.cursor > 0 && bs_t <= GetTime()) {
-        _text_buffer.buffer.erase(--_text_buffer.cursor, 1);
-        bs_t = GetTime() + .05;
+    if (auto keys = get_keys_pressed(); keys) {
+        handle_keys_pressed(keys.value());
+        return;
     }
-    while ((k = GetKeyPressed())) {
-        if (k == KEY_ENTER) {
-            _text_buffer.buffer.push_back('!');
-            std::shift_right(_text_buffer.buffer.begin() + _text_buffer.cursor, _text_buffer.buffer.end(), 1);
-            _text_buffer.buffer[_text_buffer.cursor++] = static_cast<char>('\n');
-        } else if (k == KEY_TAB) {
-            for (auto i = 0; i < 4; i++) {
-                _text_buffer.buffer.push_back('!');
-                std::shift_right(_text_buffer.buffer.begin() + _text_buffer.cursor, _text_buffer.buffer.end(), 1);
-                _text_buffer.buffer[_text_buffer.cursor++] = static_cast<char>(' ');
-            }
-        } else if (k == KEY_RIGHT) {
-            _text_buffer.cursor++;
-        } else if (k == KEY_LEFT) {
-            _text_buffer.cursor--;
-        } else if (k == KEY_DOWN) {
-            auto nl = _text_buffer.buffer.find('\n', _text_buffer.cursor);
-            if(nl == std::string::npos) break;
-            long back_nl = _text_buffer.buffer.rfind('\n', _text_buffer.cursor);
-            auto dist = _text_buffer.cursor - (back_nl == std::string::npos ? -1 : back_nl);
-            _text_buffer.cursor = nl + dist;
-            auto next_nl = _text_buffer.buffer.find('\n', _text_buffer.cursor);
-            _text_buffer.cursor = _text_buffer.cursor  > next_nl ? next_nl : _text_buffer.cursor;
-        } else if (k == KEY_UP) {
-            auto back_nl = _text_buffer.buffer.rfind('\n', _text_buffer.cursor);
-            if(back_nl == std::string::npos) break;
-            auto dist = _text_buffer.cursor - back_nl;
-            auto back2_nl = _text_buffer.buffer.rfind('\n', back_nl - 1);
-            _text_buffer.cursor = (back2_nl == std::string::npos ? -1 : back2_nl) + dist;
-        } else if (k == KEY_END){
-            auto nl = _text_buffer.buffer.find('\n', _text_buffer.cursor);
-            _text_buffer.cursor = (nl == std::string::npos ? _text_buffer.buffer.size() : nl);
-        }
-
-    }
-    _text_buffer.cursor = _text_buffer.cursor > (long)_text_buffer.buffer.size() ? (long)_text_buffer.buffer.size() : _text_buffer.cursor;
-    _text_buffer.cursor = _text_buffer.cursor < 0 ? 0 : _text_buffer.cursor;
+    // return;
+    // const double input_timeout = .08;
+    // int k = 0;
+    // static double bs_t = 0;
+    // const bool input_window = bs_t <= GetTime();
+    // if (IsKeyDown(KEY_BACKSPACE) && !_text_buffer.buffer.empty() && _text_buffer.cursor > 0 && input_window) {
+    //     _text_buffer.buffer.erase(--_text_buffer.cursor, 1);
+    //     bs_t = GetTime() + input_timeout;
+    // }
+    // if (IsKeyDown(KEY_RIGHT) && input_window) {
+    //     _text_buffer.move_cursor_right();
+    //     bs_t = GetTime() + input_timeout;
+    // }
+    // if (IsKeyDown(KEY_LEFT) && input_window) {
+    //     _text_buffer.move_cursor_left();
+    //     bs_t = GetTime() + input_timeout;
+    // }
+    // while ((k = GetKeyPressed())) {
+    //     if (k == KEY_ENTER) {
+    //         _text_buffer.buffer.push_back('!');
+    //         std::shift_right(_text_buffer.buffer.begin() + _text_buffer.cursor, _text_buffer.buffer.end(), 1);
+    //         _text_buffer.buffer[_text_buffer.cursor++] = static_cast<char>('\n');
+    //     }
+    //     if (k == KEY_TAB) {
+    //         for (auto i = 0; i < 4; i++) {
+    //             _text_buffer.buffer.push_back('!');
+    //             std::shift_right(_text_buffer.buffer.begin() + _text_buffer.cursor, _text_buffer.buffer.end(), 1);
+    //             _text_buffer.buffer[_text_buffer.cursor++] = static_cast<char>(' ');
+    //         }
+    //     }
+    //     if (k == KEY_DOWN) {
+    //         _text_buffer.move_cursor_down();
+    //         // auto nl = _text_buffer.buffer.find('\n', _text_buffer.cursor);
+    //         // if (nl == std::string::npos)
+    //         //     break;
+    //         // long back_nl = _text_buffer.buffer.rfind('\n', _text_buffer.cursor);
+    //         // auto dist = _text_buffer.cursor - (back_nl == std::string::npos ? -1 : back_nl);
+    //         // _text_buffer.cursor = nl + dist;
+    //         // auto next_nl = _text_buffer.buffer.find('\n', _text_buffer.cursor);
+    //         // _text_buffer.cursor = _text_buffer.cursor > next_nl ? next_nl : _text_buffer.cursor;
+    //     }
+    //     if (k == KEY_UP) {
+    //         _text_buffer.move_cursor_up();
+    //         // auto back_nl = _text_buffer.buffer.rfind('\n', _text_buffer.cursor);
+    //         // if (back_nl == std::string::npos)
+    //         //     break;
+    //         // auto dist = _text_buffer.cursor - back_nl;
+    //         // auto back2_nl = _text_buffer.buffer.rfind('\n', back_nl - 1);
+    //         // _text_buffer.cursor = (back2_nl == std::string::npos ? -1 : back2_nl) + dist;
+    //     }
+    //     if (k == KEY_END) {
+    //         auto nl = _text_buffer.buffer.find('\n', _text_buffer.cursor);
+    //         _text_buffer.cursor = (nl == std::string::npos ? _text_buffer.buffer.size() : nl);
+    //     }
+    // }
+    _text_buffer.normalize_cursor_position();
     int c = 0;
     while ((c = GetCharPressed())) {
         _text_buffer.buffer.push_back('!');
@@ -67,7 +192,6 @@ void update_buffer(void)
 
 void draw_buffer(void)
 {
-    // DrawText(_text_buffer.buffer.data(), 0, 0, FONT_SIZE, WHITE);
     const Font font = GetFontDefault();
     Vector2 pos = { 0, 0 };
     const float scale_factor = FONT_SIZE / (float)font.baseSize;
