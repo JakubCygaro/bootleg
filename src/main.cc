@@ -55,7 +55,7 @@ void update_buffer(void)
         }
 
     }
-    _text_buffer.cursor = _text_buffer.cursor > _text_buffer.buffer.size() ? _text_buffer.buffer.size() : _text_buffer.cursor;
+    _text_buffer.cursor = _text_buffer.cursor > (long)_text_buffer.buffer.size() ? (long)_text_buffer.buffer.size() : _text_buffer.cursor;
     _text_buffer.cursor = _text_buffer.cursor < 0 ? 0 : _text_buffer.cursor;
     int c = 0;
     while ((c = GetCharPressed())) {
