@@ -15,6 +15,7 @@
 constexpr const int FONT_SIZE = 24;
 
 #define IsKeyPressedOrRepeat(KEY) (IsKeyPressed(KEY) || IsKeyPressedRepeat(KEY))
+#define AnySpecialDown(SPECIAL_KEY) (IsKeyDown(KEY_LEFT_##SPECIAL_KEY) || IsKeyDown(KEY_RIGHT_##SPECIAL_KEY))
 
 struct TextBuffer {
     using line_t = std::string;
@@ -209,24 +210,42 @@ static TextBuffer _text_buffer = {};
 void update_buffer(void)
 {
     if (IsKeyPressedOrRepeat(KEY_LEFT)) {
-        if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
+        if (AnySpecialDown(CONTROL)) {
             _text_buffer.move_cursor_word(-1);
         } else {
             _text_buffer.move_cursor_left();
         }
     }
+    if (IsKeyPressedOrRepeat(KEY_H) && AnySpecialDown(CONTROL)) {
+            _text_buffer.move_cursor_left();
+    }
+    if (IsKeyPressedOrRepeat(KEY_B) && AnySpecialDown(CONTROL)) {
+            _text_buffer.move_cursor_word(-1);
+    }
     if (IsKeyPressedOrRepeat(KEY_RIGHT)) {
-        if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
+        if (AnySpecialDown(CONTROL)) {
             _text_buffer.move_cursor_word(1);
         } else {
             _text_buffer.move_cursor_right();
         }
     }
+    if (IsKeyPressedOrRepeat(KEY_L) && AnySpecialDown(CONTROL)) {
+            _text_buffer.move_cursor_right();
+    }
+    if (IsKeyPressedOrRepeat(KEY_W) && AnySpecialDown(CONTROL)) {
+            _text_buffer.move_cursor_word(1);
+    }
     if (IsKeyPressedOrRepeat(KEY_UP)) {
         _text_buffer.move_cursor_up();
     }
+    if (IsKeyPressedOrRepeat(KEY_K) && AnySpecialDown(CONTROL)) {
+            _text_buffer.move_cursor_up();
+    }
     if (IsKeyPressedOrRepeat(KEY_DOWN)) {
         _text_buffer.move_cursor_down();
+    }
+    if (IsKeyPressedOrRepeat(KEY_J) && AnySpecialDown(CONTROL)) {
+            _text_buffer.move_cursor_down();
     }
     if (IsKeyPressedOrRepeat(KEY_END)) {
         _text_buffer.jump_cursor_to_end();
