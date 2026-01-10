@@ -37,10 +37,12 @@ struct TextBuffer {
     }
     void move_cursor_down(void)
     {
-        auto nl = buffer.find('\n', cursor);
-        if (nl == std::string::npos)
+        auto nl = buffer.find('\n', cursor + 1);
+        if (nl == std::string::npos){
             return;
-        long back_nl = buffer.rfind('\n', cursor);
+        }
+        auto back_nl = buffer.rfind('\n', cursor);
+        std::flush(std::cout);
         auto dist = cursor - (back_nl == std::string::npos ? -1 : back_nl);
         cursor = nl + dist;
         auto next_nl = buffer.find('\n', cursor);
