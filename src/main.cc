@@ -1,6 +1,8 @@
 #include "defer.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <optional>
 #include <ostream>
@@ -18,13 +20,25 @@ constexpr const int FONT_SIZE = 24;
 #define AnySpecialDown(SPECIAL_KEY) (IsKeyDown(KEY_LEFT_##SPECIAL_KEY) || IsKeyDown(KEY_RIGHT_##SPECIAL_KEY))
 
 struct TextBuffer {
-    using line_t = std::string;
+    using char_t = char;
+    using line_t = std::basic_string<char_t>;
     struct Cursor {
         long line {};
         long col {};
     };
     std::vector<line_t> lines = { {} };
     Cursor cursor = {};
+    Font font {};
+    int font_size = FONT_SIZE;
+    int spacing = 10;
+    void increase_font_size()
+    {
+        font_size = std::clamp(font_size + 1, 10, 60);
+    }
+    void decrease_font_size()
+    {
+        font_size = std::clamp(font_size - 1, 10, 60);
+    }
     bool is_cursor_at_begining(void)
     {
         return (cursor.col == 0 && cursor.line == 0);
@@ -175,11 +189,11 @@ struct TextBuffer {
             }
         }
     }
-    void push_character(char c)
+    void insert_character(char_t c)
     {
         current_line().push_back('!');
         std::shift_right(current_line().begin() + cursor.col, current_line().end(), 1);
-        current_line()[cursor.col++] = static_cast<char>(c);
+        current_line()[cursor.col++] = static_cast<char_t>(c);
     }
     void jump_cursor_to_end(void)
     {
@@ -217,10 +231,10 @@ void update_buffer(void)
         }
     }
     if (IsKeyPressedOrRepeat(KEY_H) && AnySpecialDown(CONTROL)) {
-            _text_buffer.move_cursor_left();
+        _text_buffer.move_cursor_left();
     }
     if (IsKeyPressedOrRepeat(KEY_B) && AnySpecialDown(CONTROL)) {
-            _text_buffer.move_cursor_word(-1);
+        _text_buffer.move_cursor_word(-1);
     }
     if (IsKeyPressedOrRepeat(KEY_RIGHT)) {
         if (AnySpecialDown(CONTROL)) {
@@ -230,22 +244,22 @@ void update_buffer(void)
         }
     }
     if (IsKeyPressedOrRepeat(KEY_L) && AnySpecialDown(CONTROL)) {
-            _text_buffer.move_cursor_right();
+        _text_buffer.move_cursor_right();
     }
     if (IsKeyPressedOrRepeat(KEY_W) && AnySpecialDown(CONTROL)) {
-            _text_buffer.move_cursor_word(1);
+        _text_buffer.move_cursor_word(1);
     }
     if (IsKeyPressedOrRepeat(KEY_UP)) {
         _text_buffer.move_cursor_up();
     }
     if (IsKeyPressedOrRepeat(KEY_K) && AnySpecialDown(CONTROL)) {
-            _text_buffer.move_cursor_up();
+        _text_buffer.move_cursor_up();
     }
     if (IsKeyPressedOrRepeat(KEY_DOWN)) {
         _text_buffer.move_cursor_down();
     }
     if (IsKeyPressedOrRepeat(KEY_J) && AnySpecialDown(CONTROL)) {
-            _text_buffer.move_cursor_down();
+        _text_buffer.move_cursor_down();
     }
     if (IsKeyPressedOrRepeat(KEY_END)) {
         _text_buffer.jump_cursor_to_end();
@@ -262,29 +276,45 @@ void update_buffer(void)
     if (IsKeyPressedOrRepeat(KEY_ENTER)) {
         _text_buffer.insert_newline();
     }
+    if (IsKeyPressedOrRepeat(KEY_O) && AnySpecialDown(CONTROL)) {
+        _text_buffer.insert_newline();
+    }
     if (IsKeyPressedOrRepeat(KEY_TAB)) {
         for (auto i = 0; i < 4; i++) {
-            _text_buffer.push_character(' ');
+            _text_buffer.insert_character(' ');
         }
+    }
+    if (IsKeyPressedOrRepeat(KEY_EQUAL) && AnySpecialDown(SHIFT) && AnySpecialDown(CONTROL)) {
+        _text_buffer.increase_font_size();
+    }
+    if (IsKeyPressedOrRepeat(KEY_MINUS) && AnySpecialDown(CONTROL)) {
+        _text_buffer.decrease_font_size();
     }
     _text_buffer.clamp_cursor();
     int c = 0;
+    char* cptr = reinterpret_cast<char*>(&c);
     while ((c = GetCharPressed())) {
-        _text_buffer.push_character(c);
+        for(auto i = 0; i < sizeof(int); i++){
+            if(*cptr == 0) continue;
+            _text_buffer.insert_character(*cptr);
+            cptr++;
+        }
     }
 }
 
 void draw_buffer(void)
 {
-    const Font font = GetFontDefault();
+    const Font font = _text_buffer.font;
     Vector2 pos = { 0, 0 };
-    const float scale_factor = FONT_SIZE / (float)font.baseSize;
+    const float scale_factor = _text_buffer.font_size / (float)font.baseSize;
     const float line_advance = font.recs[GetGlyphIndex(font, ' ')].height * scale_factor;
     Rectangle last_c_r = { 0 };
     for (std::size_t linen = 0; linen < _text_buffer.get_line_count(); linen++) {
         auto& current_line = _text_buffer.lines[linen];
-        for (size_t col = 0; col < current_line.size(); col++) {
-            char c = current_line[col];
+        for (size_t col = 0; col < current_line.size();) {
+            // int c = current_line[col];
+            int csz = 0;
+            int c = GetCodepointNext(current_line.data() + col, &csz);
             int idx = GetGlyphIndex(font, c);
             float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
             float glyph_height = font.recs[idx].height * scale_factor;
@@ -295,12 +325,12 @@ void draw_buffer(void)
                                      .x = pos.x,
                                      .y = pos.y,
                                      .width = 2.,
-                                     .height = glyph_height },
+                                     .height = line_advance },
                     WHITE);
             }
-            DrawTextCodepoint(font, c, pos, 24, WHITE);
+            DrawTextCodepoint(font, c, pos, _text_buffer.font_size, WHITE);
             pos.x += glyph_width + 2;
-
+            col += csz;
             last_c_r = r;
         }
         if (_text_buffer.cursor.line == linen && _text_buffer.cursor.col == current_line.size()) {
@@ -316,15 +346,26 @@ void draw_buffer(void)
     }
 }
 
-int main(void)
+Font try_load_font(char* path)
 {
-    InitWindow(800, 600, "bootleg");
-    SetTargetFPS(60);
+    if (!FileExists(path))
+        return GetFontDefault();
+    return LoadFontEx(path, 100, NULL, 0);
+}
+int main(int argc, char** args)
+{
     _text_buffer.lines = { { "int main(void){",
         "    printf(\"Hello, World!\");",
         "    return 0;",
         "}" } };
+    InitWindow(800, 600, "bootleg");
     DEFER(CloseWindow());
+    _text_buffer.font = argc == 2 ? (try_load_font(args[1])) : GetFontDefault();
+    DEFER(
+            if(_text_buffer.font.texture.id != GetFontDefault().texture.id)
+                UnloadFont(_text_buffer.font);
+         );
+    SetTargetFPS(60);
     while (!WindowShouldClose()) {
         update_buffer();
         BeginDrawing();
