@@ -163,17 +163,29 @@ static TextBuffer _text_buffer = {};
 
 void update_buffer(void)
 {
+    if (IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT)) {
+        _text_buffer.move_cursor_left();
+    }
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT)) {
+        _text_buffer.move_cursor_right();
+    }
+    if (IsKeyPressed(KEY_UP) || IsKeyPressedRepeat(KEY_UP)) {
+        _text_buffer.move_cursor_up();
+    }
+    if (IsKeyPressed(KEY_DOWN) || IsKeyPressedRepeat(KEY_DOWN)) {
+        _text_buffer.move_cursor_down();
+    }
+    if (IsKeyPressed(KEY_END)) {
+        _text_buffer.jump_cursor_to_end();
+    }
+    if (IsKeyPressed(KEY_HOME)) {
+        _text_buffer.jump_cursor_to_start();
+    }
     if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) {
         _text_buffer.delete_characters_back();
     }
     if (IsKeyPressed(KEY_DELETE) || IsKeyPressedRepeat(KEY_DELETE)) {
         _text_buffer.delete_characters_forward();
-    }
-    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT)) {
-        _text_buffer.move_cursor_right();
-    }
-    if (IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT)) {
-        _text_buffer.move_cursor_left();
     }
     if (IsKeyPressed(KEY_ENTER) || IsKeyPressedRepeat(KEY_ENTER)) {
         _text_buffer.insert_newline();
