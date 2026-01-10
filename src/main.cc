@@ -10,8 +10,6 @@
 #define META true
 #define SHIFT true
 #define NO false
-#define KEYS(k, KEY, C, M, S) (k.key == KEY && k.control == C && k.meta == M && k.shift == S)
-#define KEYSDOWN(k) (IsKeyDown(k.key) && (k.control ? IsKeyDown(KEY_LEFT_CONTROL) : true) && (k.))
 
 constexpr const int FONT_SIZE = 24;
 
@@ -163,112 +161,32 @@ struct TextBuffer {
 
 static TextBuffer _text_buffer = {};
 
-struct Keys {
-    bool control {};
-    bool meta {};
-    bool shift {};
-    int key {};
-};
-
-std::optional<Keys> get_keys_pressed(void)
-{
-    int k;
-    std::optional<Keys> ret {};
-    while ((k = GetKeyPressed())) {
-        ret = ret.has_value() ? ret : Keys {};
-        switch (k) {
-        case KEY_LEFT_CONTROL:
-        case KEY_RIGHT_CONTROL:
-            ret.value().control = true;
-            break;
-        case KEY_LEFT_SHIFT:
-        case KEY_RIGHT_SHIFT:
-            ret.value().shift = true;
-            break;
-        case KEY_LEFT_ALT:
-        case KEY_RIGHT_ALT:
-            ret.value().meta = true;
-            break;
-        default:
-            ret.value().key = k;
-            break;
-        }
-    }
-    return ret;
-}
-
-void handle_keys_pressed(Keys keys)
-{
-    static Keys last_keys = {};
-    if (KEYS(keys, KEY_RIGHT, NO, NO, NO)) {
-        _text_buffer.move_cursor_right();
-    }
-    if (KEYS(keys, KEY_LEFT, NO, NO, NO)) {
-        _text_buffer.move_cursor_left();
-    }
-    if (KEYS(keys, KEY_UP, NO, NO, NO)) {
-        _text_buffer.move_cursor_up();
-    }
-    if (KEYS(keys, KEY_DOWN, NO, NO, NO)) {
-        _text_buffer.move_cursor_down();
-    }
-    if (KEYS(keys, KEY_BACKSPACE, NO, NO, NO)) {
-        _text_buffer.delete_characters_back();
-    }
-}
-
 void update_buffer(void)
 {
-    // if (auto keys = get_keys_pressed(); keys) {
-    //     handle_keys_pressed(keys.value());
-    //     return;
-    // }
-    // return;
-    const double input_timeout = .08;
-    int k = 0;
-    static double bs_t = 0;
-    const bool input_window = bs_t <= GetTime();
-    if (IsKeyDown(KEY_BACKSPACE) && input_window) {
+    if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) {
         _text_buffer.delete_characters_back();
-        bs_t = GetTime() + input_timeout;
     }
-    if (IsKeyDown(KEY_DELETE) && input_window) {
+    if (IsKeyPressed(KEY_DELETE) || IsKeyPressedRepeat(KEY_DELETE)) {
         _text_buffer.delete_characters_forward();
-        bs_t = GetTime() + input_timeout;
     }
-    if (IsKeyDown(KEY_RIGHT) && input_window) {
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT)) {
         _text_buffer.move_cursor_right();
-        bs_t = GetTime() + input_timeout;
     }
-    if (IsKeyDown(KEY_LEFT) && input_window) {
+    if (IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT)) {
         _text_buffer.move_cursor_left();
-        bs_t = GetTime() + input_timeout;
     }
-    while ((k = GetKeyPressed())) {
-        if (k == KEY_ENTER) {
-            _text_buffer.insert_newline();
-        }
-        if (k == KEY_TAB) {
-            for (auto i = 0; i < 4; i++) {
-                _text_buffer.push_character(' ');
-            }
-        }
-        if (k == KEY_DOWN) {
-            _text_buffer.move_cursor_down();
-        }
-        if (k == KEY_UP) {
-            _text_buffer.move_cursor_up();
-        }
-        if (k == KEY_END) {
-            _text_buffer.jump_cursor_to_end();
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressedRepeat(KEY_ENTER)) {
+        _text_buffer.insert_newline();
+    }
+    if (IsKeyPressed(KEY_TAB) || IsKeyPressedRepeat(KEY_TAB)) {
+        for (auto i = 0; i < 4; i++) {
+            _text_buffer.push_character(' ');
         }
     }
     _text_buffer.clamp_cursor();
     int c = 0;
     while ((c = GetCharPressed())) {
         _text_buffer.push_character(c);
-        TraceLog(LOG_INFO, "%c", c);
-        std::flush(std::cout);
     }
 }
 
