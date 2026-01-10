@@ -1,5 +1,6 @@
 #include "defer.hpp"
 #include <algorithm>
+#include <cstdlib>
 #include <iostream>
 #include <optional>
 #include <ostream>
@@ -13,17 +14,37 @@
 
 constexpr const int FONT_SIZE = 24;
 
+#define IsKeyPressedOrRepeat(KEY) (IsKeyPressed(KEY) || IsKeyPressedRepeat(KEY))
+
 struct TextBuffer {
     using line_t = std::string;
     struct Cursor {
         long line {};
         long col {};
     };
-    std::vector<line_t> lines = {{}};
+    std::vector<line_t> lines = { {} };
     Cursor cursor = {};
+    bool is_cursor_at_begining(void)
+    {
+        return (cursor.col == 0 && cursor.line == 0);
+    }
+    bool is_cursor_at_end(void)
+    {
+        return (cursor.col == lines.back().size() && cursor.line == lines.size() - 1);
+    }
     line_t& current_line(void)
     {
         return lines[cursor.line];
+    }
+    const line_t& current_line(void) const
+    {
+        return lines[cursor.line];
+    }
+    std::optional<line_t::value_type> get_char_under_cursor(void) const
+    {
+        if (cursor.col == 0)
+            return std::nullopt;
+        return current_line()[cursor.col - 1];
     }
     size_t get_line_count(void) const
     {
@@ -33,6 +54,28 @@ struct TextBuffer {
     {
         cursor.line = std::clamp(cursor.line, (long)0, (long)lines.size() - 1);
         cursor.col = std::clamp(cursor.col, (long)0, (long)current_line().size());
+    }
+    void move_cursor_word(long amount)
+    {
+        if (!amount)
+            return;
+        const auto amount_abs = std::abs(amount);
+        const auto inc = (amount / std::abs(amount));
+        auto end_check = [&]() {
+            return (inc > 0 && is_cursor_at_end()) || (inc < 0 && is_cursor_at_begining());
+        };
+        auto prev = get_char_under_cursor();
+        auto i = 0;
+        while (std::abs(i) < amount_abs && !end_check()) {
+            move_cursor_h(inc);
+            auto c = get_char_under_cursor();
+            if (c && prev) {
+                if (std::isalnum(prev.value()) && (!std::isalnum(c.value()))) {
+                    i += inc;
+                }
+            }
+            prev = c;
+        }
     }
     void move_cursor_left(long amount = 1)
     {
@@ -45,10 +88,10 @@ struct TextBuffer {
     void move_cursor_h(long amount)
     {
         cursor.col += amount;
-        if(cursor.col < 0 && cursor.line != 0) {
+        if (cursor.col < 0 && cursor.line != 0) {
             cursor.line--;
             cursor.col = (long)current_line().size();
-        } else if(cursor.col > (long)current_line().size() && cursor.line != lines.size() - 1) {
+        } else if (cursor.col > (long)current_line().size() && cursor.line != lines.size() - 1) {
             cursor.line++;
             cursor.col = 0;
         }
@@ -69,13 +112,14 @@ struct TextBuffer {
     }
     void delete_line(size_t line_num)
     {
-        if(lines.size() == 1)
+        if (lines.size() == 1)
             return;
         lines.erase(lines.begin() + line_num);
         clamp_cursor();
     }
-    bool concat_backward(void) {
-        if(cursor.line > 0){
+    bool concat_backward(void)
+    {
+        if (cursor.line > 0) {
             cursor.line--;
             jump_cursor_to_end();
             current_line().append(lines[cursor.line + 1]);
@@ -84,8 +128,9 @@ struct TextBuffer {
         }
         return false;
     }
-    bool concat_forward(void) {
-        if(cursor.line < lines.size() - 1){
+    bool concat_forward(void)
+    {
+        if (cursor.line < lines.size() - 1) {
             current_line().append(lines[cursor.line + 1]);
             delete_line(cursor.line + 1);
             return true;
@@ -95,11 +140,11 @@ struct TextBuffer {
     void delete_characters_back(unsigned long amount = 1)
     {
         auto to_delete = amount;
-        while(true){
+        while (true) {
             auto col = cursor.col;
             auto chars = cursor.col;
             if (chars < to_delete) {
-                if(!concat_backward()) {
+                if (!concat_backward()) {
                     current_line().erase(current_line().begin(), current_line().begin() + cursor.col);
                     return;
                 }
@@ -114,11 +159,11 @@ struct TextBuffer {
     void delete_characters_forward(unsigned long amount = 1)
     {
         auto to_delete = amount;
-        while(true){
+        while (true) {
             auto col = cursor.col;
             auto chars = current_line().size() - col;
             if (chars < to_delete) {
-                if(!concat_forward()) {
+                if (!concat_forward()) {
                     current_line().erase(current_line().begin() + cursor.col, current_line().end());
                     return;
                 }
@@ -163,34 +208,42 @@ static TextBuffer _text_buffer = {};
 
 void update_buffer(void)
 {
-    if (IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT)) {
-        _text_buffer.move_cursor_left();
+    if (IsKeyPressedOrRepeat(KEY_LEFT)) {
+        if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
+            _text_buffer.move_cursor_word(-1);
+        } else {
+            _text_buffer.move_cursor_left();
+        }
     }
-    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT)) {
-        _text_buffer.move_cursor_right();
+    if (IsKeyPressedOrRepeat(KEY_RIGHT)) {
+        if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
+            _text_buffer.move_cursor_word(1);
+        } else {
+            _text_buffer.move_cursor_right();
+        }
     }
-    if (IsKeyPressed(KEY_UP) || IsKeyPressedRepeat(KEY_UP)) {
+    if (IsKeyPressedOrRepeat(KEY_UP)) {
         _text_buffer.move_cursor_up();
     }
-    if (IsKeyPressed(KEY_DOWN) || IsKeyPressedRepeat(KEY_DOWN)) {
+    if (IsKeyPressedOrRepeat(KEY_DOWN)) {
         _text_buffer.move_cursor_down();
     }
-    if (IsKeyPressed(KEY_END)) {
+    if (IsKeyPressedOrRepeat(KEY_END)) {
         _text_buffer.jump_cursor_to_end();
     }
-    if (IsKeyPressed(KEY_HOME)) {
+    if (IsKeyPressedOrRepeat(KEY_HOME)) {
         _text_buffer.jump_cursor_to_start();
     }
-    if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) {
+    if (IsKeyPressedOrRepeat(KEY_BACKSPACE)) {
         _text_buffer.delete_characters_back();
     }
-    if (IsKeyPressed(KEY_DELETE) || IsKeyPressedRepeat(KEY_DELETE)) {
+    if (IsKeyPressedOrRepeat(KEY_DELETE)) {
         _text_buffer.delete_characters_forward();
     }
-    if (IsKeyPressed(KEY_ENTER) || IsKeyPressedRepeat(KEY_ENTER)) {
+    if (IsKeyPressedOrRepeat(KEY_ENTER)) {
         _text_buffer.insert_newline();
     }
-    if (IsKeyPressed(KEY_TAB) || IsKeyPressedRepeat(KEY_TAB)) {
+    if (IsKeyPressedOrRepeat(KEY_TAB)) {
         for (auto i = 0; i < 4; i++) {
             _text_buffer.push_character(' ');
         }
@@ -248,12 +301,10 @@ int main(void)
 {
     InitWindow(800, 600, "bootleg");
     SetTargetFPS(60);
-    _text_buffer.lines = {{
-        "int main(void){",
+    _text_buffer.lines = { { "int main(void){",
         "    printf(\"Hello, World!\");",
         "    return 0;",
-        "}"
-    }};
+        "}" } };
     DEFER(CloseWindow());
     while (!WindowShouldClose()) {
         update_buffer();
