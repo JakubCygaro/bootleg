@@ -1,6 +1,7 @@
 #include "defer.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -21,7 +22,7 @@ constexpr const int FONT_SIZE = 24;
 
 struct TextBuffer {
     using char_t = char;
-    using line_t = std::basic_string<char_t>;
+    using line_t = std::basic_string<char8_t>;
     struct Cursor {
         long line {};
         long col {};
@@ -221,6 +222,29 @@ struct TextBuffer {
 
 static TextBuffer _text_buffer = {};
 
+static size_t encode_utf8(int utf, char* buf)
+{
+    printf("%016b\n", utf);
+    if(utf > 0 && utf <= 0x007F){
+        buf[0] = 0;
+        buf[0] |= utf;
+        buf[0] &= (0xFF >> 1);
+        return 1;
+    } else if (utf >= 0x0080 && utf <= 0x07FF){
+        // byte 1
+        buf[0] = 0;
+        buf[0] = (utf >> 6);
+        buf[0] |= (char)0b11000000;
+        buf[0] &= (char)0b11011111;
+        // byte 2
+        buf[1] = utf;
+        buf[1] |= (char)0b10000000;
+        buf[1] &= (char)0b10111111;
+        return 2;
+    }
+    return 1;
+}
+
 void update_buffer(void)
 {
     if (IsKeyPressedOrRepeat(KEY_LEFT)) {
@@ -291,13 +315,15 @@ void update_buffer(void)
         _text_buffer.decrease_font_size();
     }
     _text_buffer.clamp_cursor();
+    static char utfbuf[4] = { 0 };
     int c = 0;
     char* cptr = reinterpret_cast<char*>(&c);
     while ((c = GetCharPressed())) {
-        for(auto i = 0; i < sizeof(int); i++){
-            if(*cptr == 0) continue;
-            _text_buffer.insert_character(*cptr);
-            cptr++;
+        TraceLog(LOG_INFO, "U+%04x", c);
+
+        auto len = encode_utf8(c, utfbuf);
+        for (auto i = 0; i < len; i++) {
+            _text_buffer.insert_character(utfbuf[i]);
         }
     }
 }
@@ -313,8 +339,12 @@ void draw_buffer(void)
         auto& current_line = _text_buffer.lines[linen];
         for (size_t col = 0; col < current_line.size();) {
             // int c = current_line[col];
-            int csz = 0;
-            int c = GetCodepointNext(current_line.data() + col, &csz);
+            int csz = 1;
+            int c = GetCodepoint((char*)&current_line.data()[col], &csz);
+            // if (csz > 1) {
+            //     std::printf("ż%d %.*s\n",csz, csz, (char*)&current_line.data()[col]);
+            //     std::flush(std::cout);
+            // }
             int idx = GetGlyphIndex(font, c);
             float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
             float glyph_height = font.recs[idx].height * scale_factor;
@@ -345,26 +375,50 @@ void draw_buffer(void)
         pos.y += line_advance;
     }
 }
+static void add_codepoints_range(Font* font, const char* fontPath, int start, int stop)
+{
+    int rangeSize = stop - start + 1;
+    int currentRangeSize = font->glyphCount;
 
+    // TODO: Load glyphs from provided vector font (if available),
+    // add them to existing font, regenerating font image and texture
+
+    int updatedCodepointCount = currentRangeSize + rangeSize;
+    int* updatedCodepoints = new int[updatedCodepointCount];
+    DEFER(delete[] updatedCodepoints);
+
+    // Get current codepoint list
+    for (int i = 0; i < currentRangeSize; i++)
+        updatedCodepoints[i] = font->glyphs[i].value;
+
+    // Add new codepoints to list (provided range)
+    for (int i = currentRangeSize; i < updatedCodepointCount; i++)
+        updatedCodepoints[i] = start + (i - currentRangeSize);
+
+    UnloadFont(*font);
+    *font = LoadFontEx(fontPath, 32, updatedCodepoints, updatedCodepointCount);
+}
 Font try_load_font(char* path)
 {
     if (!FileExists(path))
         return GetFontDefault();
-    return LoadFontEx(path, 100, NULL, 0);
+    auto font = LoadFontEx(path, 100, NULL, 0);
+    add_codepoints_range(&font, path, 0xc0, 0x17f);
+    add_codepoints_range(&font, path, 0x180, 0x24f);
+    return font;
 }
 int main(int argc, char** args)
 {
-    _text_buffer.lines = { { "int main(void){",
-        "    printf(\"Hello, World!\");",
-        "    return 0;",
-        "}" } };
+    _text_buffer.lines = { { u8"int main(void){",
+        u8"    printf(\"Hello, World!\");",
+        u8"    return 0;",
+        u8"}ąąą" } };
     InitWindow(800, 600, "bootleg");
     DEFER(CloseWindow());
     _text_buffer.font = argc == 2 ? (try_load_font(args[1])) : GetFontDefault();
     DEFER(
-            if(_text_buffer.font.texture.id != GetFontDefault().texture.id)
-                UnloadFont(_text_buffer.font);
-         );
+        if (_text_buffer.font.texture.id != GetFontDefault().texture.id)
+            UnloadFont(_text_buffer.font););
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
         update_buffer();
