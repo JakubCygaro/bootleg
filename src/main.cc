@@ -241,8 +241,45 @@ static size_t encode_utf8(int utf, char* buf)
         buf[1] |= (char)0b10000000;
         buf[1] &= (char)0b10111111;
         return 2;
+    } else if (utf >= 0x0080 && utf <= 0x07FF){
+        // byte 1
+        buf[0] = 0;
+        buf[0] = (utf >> 12);
+        buf[0] |= (char)0b11100000;
+        buf[0] &= (char)0b11101111;
+        // byte 2
+        buf[1] = 0;
+        buf[1] = (utf >> 6);
+        buf[1] |= (char)0b10000000;
+        buf[1] &= (char)0b10111111;
+        // byte 3
+        buf[2] = utf;
+        buf[2] |= (char)0b10000000;
+        buf[2] &= (char)0b10111111;
+        return 3;
+    } else {
+        // byte 1
+        buf[0] = 0;
+        buf[0] = (utf >> 16);
+        buf[0] |= (char)0b11110000;
+        buf[0] &= (char)0b11110111;
+        // byte 2
+        buf[1] = 0;
+        buf[1] = (utf >> 12);
+        buf[2] |= (char)0b10000000;
+        buf[2] &= (char)0b10111111;
+        // byte 3
+        buf[2] = 0;
+        buf[2] = (utf >> 6);
+        buf[2] |= (char)0b10000000;
+        buf[2] &= (char)0b10111111;
+        // byte 4
+        buf[3] = utf;
+        buf[3] |= (char)0b10000000;
+        buf[3] &= (char)0b10111111;
+
+        return 4;
     }
-    return 1;
 }
 
 void update_buffer(void)
