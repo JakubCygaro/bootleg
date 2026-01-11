@@ -1,4 +1,5 @@
 #include "defer.hpp"
+#include "utf8.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
@@ -21,8 +22,8 @@ constexpr const int FONT_SIZE = 24;
 #define AnySpecialDown(SPECIAL_KEY) (IsKeyDown(KEY_LEFT_##SPECIAL_KEY) || IsKeyDown(KEY_RIGHT_##SPECIAL_KEY))
 
 struct TextBuffer {
-    using char_t = char;
-    using line_t = std::basic_string<char8_t>;
+    using char_t = char8_t;
+    using line_t = std::basic_string<char_t>;
     struct Cursor {
         long line {};
         long col {};
@@ -103,15 +104,30 @@ struct TextBuffer {
     }
     void move_cursor_h(long amount)
     {
-        cursor.col += amount;
-        if (cursor.col < 0 && cursor.line != 0) {
-            cursor.line--;
-            cursor.col = (long)current_line().size();
-        } else if (cursor.col > (long)current_line().size() && cursor.line != lines.size() - 1) {
-            cursor.line++;
-            cursor.col = 0;
+        // cursor.col += amount;
+        const auto amount_abs = std::abs(amount);
+        const auto inc = (amount / std::abs(amount));
+        size_t moved = 0;
+        for (; moved < amount_abs; moved++) {
+            auto c = get_char_under_cursor();
+            if (c.has_value()) {
+                char ch = c.value();
+                auto len = utf8::get_utf8_bytes_len(ch);
+                std::println("ch: {}, len: {}", ch, len);
+                // cursor.col += len * inc;
+                cursor.col += inc;
+            } else
+                cursor.col += inc;
+
+            if (cursor.col < 0 && cursor.line != 0) {
+                cursor.line--;
+                cursor.col = (long)current_line().size();
+            } else if (cursor.col > (long)current_line().size() && cursor.line != lines.size() - 1) {
+                cursor.line++;
+                cursor.col = 0;
+            }
+            clamp_cursor();
         }
-        clamp_cursor();
     }
     void move_cursor_v(long amount)
     {
@@ -222,66 +238,6 @@ struct TextBuffer {
 
 static TextBuffer _text_buffer = {};
 
-static size_t encode_utf8(int utf, char* buf)
-{
-    printf("%016b\n", utf);
-    if(utf > 0 && utf <= 0x007F){
-        buf[0] = 0;
-        buf[0] |= utf;
-        buf[0] &= (0xFF >> 1);
-        return 1;
-    } else if (utf >= 0x0080 && utf <= 0x07FF){
-        // byte 1
-        buf[0] = 0;
-        buf[0] = (utf >> 6);
-        buf[0] |= (char)0b11000000;
-        buf[0] &= (char)0b11011111;
-        // byte 2
-        buf[1] = utf;
-        buf[1] |= (char)0b10000000;
-        buf[1] &= (char)0b10111111;
-        return 2;
-    } else if (utf >= 0x0080 && utf <= 0x07FF){
-        // byte 1
-        buf[0] = 0;
-        buf[0] = (utf >> 12);
-        buf[0] |= (char)0b11100000;
-        buf[0] &= (char)0b11101111;
-        // byte 2
-        buf[1] = 0;
-        buf[1] = (utf >> 6);
-        buf[1] |= (char)0b10000000;
-        buf[1] &= (char)0b10111111;
-        // byte 3
-        buf[2] = utf;
-        buf[2] |= (char)0b10000000;
-        buf[2] &= (char)0b10111111;
-        return 3;
-    } else {
-        // byte 1
-        buf[0] = 0;
-        buf[0] = (utf >> 16);
-        buf[0] |= (char)0b11110000;
-        buf[0] &= (char)0b11110111;
-        // byte 2
-        buf[1] = 0;
-        buf[1] = (utf >> 12);
-        buf[2] |= (char)0b10000000;
-        buf[2] &= (char)0b10111111;
-        // byte 3
-        buf[2] = 0;
-        buf[2] = (utf >> 6);
-        buf[2] |= (char)0b10000000;
-        buf[2] &= (char)0b10111111;
-        // byte 4
-        buf[3] = utf;
-        buf[3] |= (char)0b10000000;
-        buf[3] &= (char)0b10111111;
-
-        return 4;
-    }
-}
-
 void update_buffer(void)
 {
     if (IsKeyPressedOrRepeat(KEY_LEFT)) {
@@ -356,9 +312,7 @@ void update_buffer(void)
     int c = 0;
     char* cptr = reinterpret_cast<char*>(&c);
     while ((c = GetCharPressed())) {
-        TraceLog(LOG_INFO, "U+%04x", c);
-
-        auto len = encode_utf8(c, utfbuf);
+        auto len = utf8::encode_utf8(c, utfbuf);
         for (auto i = 0; i < len; i++) {
             _text_buffer.insert_character(utfbuf[i]);
         }
@@ -412,28 +366,24 @@ void draw_buffer(void)
         pos.y += line_advance;
     }
 }
+// lifted from raylib examples
 static void add_codepoints_range(Font* font, const char* fontPath, int start, int stop)
 {
     int rangeSize = stop - start + 1;
     int currentRangeSize = font->glyphCount;
 
-    // TODO: Load glyphs from provided vector font (if available),
-    // add them to existing font, regenerating font image and texture
-
     int updatedCodepointCount = currentRangeSize + rangeSize;
     int* updatedCodepoints = new int[updatedCodepointCount];
     DEFER(delete[] updatedCodepoints);
 
-    // Get current codepoint list
     for (int i = 0; i < currentRangeSize; i++)
         updatedCodepoints[i] = font->glyphs[i].value;
 
-    // Add new codepoints to list (provided range)
     for (int i = currentRangeSize; i < updatedCodepointCount; i++)
         updatedCodepoints[i] = start + (i - currentRangeSize);
 
     UnloadFont(*font);
-    *font = LoadFontEx(fontPath, 32, updatedCodepoints, updatedCodepointCount);
+    *font = LoadFontEx(fontPath, 100, updatedCodepoints, updatedCodepointCount);
 }
 Font try_load_font(char* path)
 {
@@ -446,10 +396,10 @@ Font try_load_font(char* path)
 }
 int main(int argc, char** args)
 {
-    _text_buffer.lines = { { u8"int main(void){",
-        u8"    printf(\"Hello, World!\");",
-        u8"    return 0;",
-        u8"}ąąą" } };
+    _text_buffer.lines = { {
+        u8"Śmiechawa ŋŋœœ ŋ œ ó ó Ó",
+        // u8"gÓÓÓÓwno łłł „” "
+    } };
     InitWindow(800, 600, "bootleg");
     DEFER(CloseWindow());
     _text_buffer.font = argc == 2 ? (try_load_font(args[1])) : GetFontDefault();

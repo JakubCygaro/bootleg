@@ -12,6 +12,7 @@ target_compile_features(cppfeatures INTERFACE cxx_std_23)
 
 add_executable(bootleg
     ${CMAKE_SOURCE_DIR}/src/main.cc
+    ${CMAKE_SOURCE_DIR}/src/utf8.cc
 )
 
 find_package(raylib)
