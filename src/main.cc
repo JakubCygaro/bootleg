@@ -80,6 +80,7 @@ struct TextBuffer {
     }
     void move_cursor_word(long amount)
     {
+        //TODO: fix this
         if (!amount)
             return;
         const auto amount_abs = std::abs(amount);
