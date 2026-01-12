@@ -1,12 +1,13 @@
 #ifndef UTF8_HPP
 #define UTF8_HPP
 
-#define is_utf8_fragment(C) (!((C ^ (1 << 7)) >> 6))
+#include <cstdint>
 #include <cstddef>
 
 namespace utf8 {
-    size_t encode_utf8(int utf, char* buf);
-    int get_utf8_bytes_len(char first);
+    size_t encode_utf8(unsigned int utf, unsigned char* buf);
+    int get_utf8_bytes_len(uint8_t first);
+    bool is_utf8_fragment(unsigned char);
 }
 
 #endif

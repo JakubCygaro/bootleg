@@ -9,6 +9,9 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 add_library(cppfeatures INTERFACE)
 
 target_compile_features(cppfeatures INTERFACE cxx_std_23)
+target_compile_options(cppfeatures
+    INTERFACE -Wall -Wextra
+)
 
 add_executable(bootleg
     ${CMAKE_SOURCE_DIR}/src/main.cc

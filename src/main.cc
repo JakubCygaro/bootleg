@@ -59,7 +59,7 @@ struct TextBuffer {
     }
     std::optional<line_t::value_type> get_char_under_cursor(void) const
     {
-        if (cursor.col == 0)
+        if (cursor.col <= 0)
             return std::nullopt;
         return current_line()[cursor.col - 1];
     }
@@ -94,40 +94,67 @@ struct TextBuffer {
             prev = c;
         }
     }
-    void move_cursor_left(long amount = 1)
+    long move_cursor_left(long amount = 1)
     {
-        move_cursor_h(-amount);
+        return move_cursor_h(-amount);
     }
-    void move_cursor_right(long amount = 1)
+    long move_cursor_right(long amount = 1)
     {
-        move_cursor_h(amount);
+        return move_cursor_h(amount);
     }
-    void move_cursor_h(long amount)
+    // returns how many positions the cursor moved (across lines, and counted in bytes)
+    long move_cursor_h(long amount)
     {
         // cursor.col += amount;
         const auto amount_abs = std::abs(amount);
         const auto inc = (amount / std::abs(amount));
-        size_t moved = 0;
-        for (; moved < amount_abs; moved++) {
-            auto c = get_char_under_cursor();
-            if (c.has_value()) {
-                char ch = c.value();
-                auto len = utf8::get_utf8_bytes_len(ch);
-                std::println("ch: {}, len: {}", ch, len);
-                // cursor.col += len * inc;
-                cursor.col += inc;
-            } else
-                cursor.col += inc;
-
+        auto moved = 0;
+        for (auto i = 0; i < amount_abs; i++) {
+            auto prev = get_char_under_cursor();
+            cursor.col += inc;
+            // std::println("cursor.col: {}", cursor.col);
+            auto current = get_char_under_cursor();
+            if (current.has_value()) {
+                char cr = current.value();
+                auto crlen = utf8::get_utf8_bytes_len(cr);
+                // std::println("cr: {}, truelen: {}", cr, crlen);
+                //moving forward
+                if(inc > 0 && crlen > 1){
+                    cursor.col += crlen - 1;
+                    moved++;
+                }
+                //moving backwards
+                else if(inc < 0 && prev.has_value()){
+                    char pr = prev.value();
+                    auto prlen = utf8::get_utf8_bytes_len(pr);
+                    while(prlen == -1){
+                        crlen = utf8::get_utf8_bytes_len(get_char_under_cursor().value_or(' '));
+                        //move back until you encounter a normal ascii character or a root of a unicode character
+                        cursor.col += inc;
+                        moved++;
+                        if(crlen != -1)
+                            break;
+                    }
+                }
+            }
             if (cursor.col < 0 && cursor.line != 0) {
                 cursor.line--;
                 cursor.col = (long)current_line().size();
-            } else if (cursor.col > (long)current_line().size() && cursor.line != lines.size() - 1) {
+            } else if (cursor.col > (long)current_line().size() && cursor.line != (long)lines.size() - 1) {
                 cursor.line++;
                 cursor.col = 0;
+            } else if (cursor.col < 0 && cursor.line == 0) {
+                cursor.col = 0;
+                return moved;
+            } else if (cursor.col > (long)current_line().size() && cursor.line == (long)lines.size() - 1) {
+                cursor.col = (long)current_line().size();
+                return moved;
+            } else {
+                moved++;
             }
-            clamp_cursor();
+            // clamp_cursor();
         }
+        return moved;
     }
     void move_cursor_v(long amount)
     {
@@ -171,40 +198,50 @@ struct TextBuffer {
     }
     void delete_characters_back(unsigned long amount = 1)
     {
-        auto to_delete = amount;
-        while (true) {
-            auto col = cursor.col;
-            auto chars = cursor.col;
-            if (chars < to_delete) {
-                if (!concat_backward()) {
-                    current_line().erase(current_line().begin(), current_line().begin() + cursor.col);
-                    return;
-                }
-                to_delete--;
-            } else {
-                current_line().erase(cursor.col - to_delete, to_delete);
-                move_cursor_left(to_delete);
-                break;
-            }
+        auto end = cursor.line;
+        auto moved = move_cursor_left(amount);
+        auto start= cursor.line;
+        auto line_diff = end - start;
+        while(line_diff-- > 0){
+            concat_forward();
         }
+        current_line().erase(current_line().begin() + cursor.col, current_line().begin() + cursor.col + moved);
+        // for(auto i = 1ul; i <= amount; i++){
+        //     if(cursor.col == 0){
+        //         if(!concat_backward()) return;
+        //         else continue;
+        //     }
+        //     auto end = cursor.col;
+        //     std::println("moved: {}", move_cursor_left());
+        //     auto start = cursor.col;
+        //     current_line().erase(current_line().begin() + start, current_line().begin() + end);
+        // }
+        // return;
+
     }
     void delete_characters_forward(unsigned long amount = 1)
     {
-        auto to_delete = amount;
-        while (true) {
-            auto col = cursor.col;
-            auto chars = current_line().size() - col;
-            if (chars < to_delete) {
-                if (!concat_forward()) {
-                    current_line().erase(current_line().begin() + cursor.col, current_line().end());
-                    return;
-                }
-                to_delete--;
-            } else {
-                current_line().erase(cursor.col, to_delete);
-                break;
-            }
+        auto start = cursor.line;
+        auto start_col = cursor.col;
+        auto moved = move_cursor_right(amount);
+        // std::println("moved: {}", moved);
+        auto end = cursor.line;
+        auto line_diff = end - start;
+        while(line_diff-- > 0){
+            concat_backward();
         }
+        current_line().erase(current_line().begin() + start_col, current_line().begin() + cursor.col);
+        cursor.col = start_col;
+        // for(auto i = 1ul; i <= amount; i++){
+        //     if(cursor.col == 0){
+        //         if(!concat_backward()) return;
+        //         else continue;
+        //     }
+        //     auto end = cursor.col;
+        //     move_cursor_left();
+        //     auto start = cursor.col;
+        //     current_line().erase(current_line().begin() + start, current_line().begin() + end);
+        // }
     }
     void insert_character(char_t c)
     {
@@ -308,7 +345,7 @@ void update_buffer(void)
         _text_buffer.decrease_font_size();
     }
     _text_buffer.clamp_cursor();
-    static char utfbuf[4] = { 0 };
+    static unsigned char utfbuf[4] = { 0 };
     int c = 0;
     char* cptr = reinterpret_cast<char*>(&c);
     while ((c = GetCharPressed())) {
