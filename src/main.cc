@@ -47,7 +47,7 @@ struct TextBuffer {
     }
     bool is_cursor_at_end(void)
     {
-        return (cursor.col == lines.back().size() && cursor.line == lines.size() - 1);
+        return (cursor.col == (long)lines.back().size() && cursor.line == (long)lines.size() - 1);
     }
     line_t& current_line(void)
     {
@@ -59,9 +59,15 @@ struct TextBuffer {
     }
     std::optional<line_t::value_type> get_char_under_cursor(void) const
     {
-        if (cursor.col <= 0)
+        if (cursor.col <= 0 || cursor.col >= (long)current_line().size())
             return std::nullopt;
         return current_line()[cursor.col - 1];
+    }
+    std::optional<line_t::value_type> get_char_after_cursor(void) const
+    {
+        if (current_line().empty() || cursor.col == (long)current_line().size())
+            return std::nullopt;
+        return current_line()[cursor.col];
     }
     size_t get_line_count(void) const
     {
@@ -112,27 +118,25 @@ struct TextBuffer {
         for (auto i = 0; i < amount_abs; i++) {
             auto prev = get_char_under_cursor();
             cursor.col += inc;
-            // std::println("cursor.col: {}", cursor.col);
             auto current = get_char_under_cursor();
             if (current.has_value()) {
                 char cr = current.value();
                 auto crlen = utf8::get_utf8_bytes_len(cr);
-                // std::println("cr: {}, truelen: {}", cr, crlen);
-                //moving forward
-                if(inc > 0 && crlen > 1){
+                // moving forward
+                if (inc > 0 && crlen > 1) {
                     cursor.col += crlen - 1;
                     moved++;
                 }
-                //moving backwards
-                else if(inc < 0 && prev.has_value()){
+                // moving backwards
+                else if (inc < 0 && prev.has_value()) {
                     char pr = prev.value();
                     auto prlen = utf8::get_utf8_bytes_len(pr);
-                    while(prlen == -1){
+                    while (prlen == -1) {
                         crlen = utf8::get_utf8_bytes_len(get_char_under_cursor().value_or(' '));
-                        //move back until you encounter a normal ascii character or a root of a unicode character
+                        // move back until you encounter a normal ascii character or a root of a unicode character
                         cursor.col += inc;
                         moved++;
-                        if(crlen != -1)
+                        if (crlen != -1)
                             break;
                     }
                 }
@@ -156,10 +160,30 @@ struct TextBuffer {
         }
         return moved;
     }
-    void move_cursor_v(long amount)
+    long move_cursor_v(long amount)
     {
+        if (cursor.line + amount < 0){
+            amount = -cursor.line;
+        } else if(cursor.line + amount > (long)lines.size() - 1){
+            amount = (long)lines.size() - 1 - cursor.line;
+        }
         cursor.line += amount;
-        clamp_cursor();
+        auto current = get_char_under_cursor();
+        if(current){
+            auto crlen = utf8::get_utf8_bytes_len(current.value());
+            if(crlen > 1){
+                cursor.col += crlen - 1;
+            }
+            else if(crlen == -1){
+                auto next = get_char_after_cursor();
+                while(next.has_value() && utf8::get_utf8_bytes_len(next.value()) == -1){
+                    next = get_char_after_cursor();
+                    cursor.col++;
+                }
+            }
+        }
+        cursor.col = std::clamp(cursor.col, (long)0, (long)current_line().size());
+        return amount;
     }
     void move_cursor_down(void)
     {
@@ -189,7 +213,7 @@ struct TextBuffer {
     }
     bool concat_forward(void)
     {
-        if (cursor.line < lines.size() - 1) {
+        if (cursor.line < (long)lines.size() - 1) {
             current_line().append(lines[cursor.line + 1]);
             delete_line(cursor.line + 1);
             return true;
@@ -200,48 +224,25 @@ struct TextBuffer {
     {
         auto end = cursor.line;
         auto moved = move_cursor_left(amount);
-        auto start= cursor.line;
+        auto start = cursor.line;
         auto line_diff = end - start;
-        while(line_diff-- > 0){
+        while (line_diff-- > 0) {
             concat_forward();
         }
         current_line().erase(current_line().begin() + cursor.col, current_line().begin() + cursor.col + moved);
-        // for(auto i = 1ul; i <= amount; i++){
-        //     if(cursor.col == 0){
-        //         if(!concat_backward()) return;
-        //         else continue;
-        //     }
-        //     auto end = cursor.col;
-        //     std::println("moved: {}", move_cursor_left());
-        //     auto start = cursor.col;
-        //     current_line().erase(current_line().begin() + start, current_line().begin() + end);
-        // }
-        // return;
-
     }
     void delete_characters_forward(unsigned long amount = 1)
     {
         auto start = cursor.line;
         auto start_col = cursor.col;
-        auto moved = move_cursor_right(amount);
-        // std::println("moved: {}", moved);
+        move_cursor_right(amount);
         auto end = cursor.line;
         auto line_diff = end - start;
-        while(line_diff-- > 0){
+        while (line_diff-- > 0) {
             concat_backward();
         }
         current_line().erase(current_line().begin() + start_col, current_line().begin() + cursor.col);
         cursor.col = start_col;
-        // for(auto i = 1ul; i <= amount; i++){
-        //     if(cursor.col == 0){
-        //         if(!concat_backward()) return;
-        //         else continue;
-        //     }
-        //     auto end = cursor.col;
-        //     move_cursor_left();
-        //     auto start = cursor.col;
-        //     current_line().erase(current_line().begin() + start, current_line().begin() + end);
-        // }
     }
     void insert_character(char_t c)
     {
@@ -263,7 +264,7 @@ struct TextBuffer {
         std::shift_right(lines.begin() + cursor.line + 1, lines.end(), 1);
         lines.insert(lines.begin() + cursor.line + 1, {});
         auto& next_line = lines[cursor.line + 1];
-        if (cursor.col < current_line().size()) {
+        if (cursor.col < (long)current_line().size()) {
             next_line.resize(current_line().size() - cursor.col);
             std::copy(current_line().begin() + cursor.col, current_line().end(), next_line.begin());
             current_line().erase(current_line().begin() + cursor.col, current_line().end());
@@ -347,10 +348,9 @@ void update_buffer(void)
     _text_buffer.clamp_cursor();
     static unsigned char utfbuf[4] = { 0 };
     int c = 0;
-    char* cptr = reinterpret_cast<char*>(&c);
     while ((c = GetCharPressed())) {
         auto len = utf8::encode_utf8(c, utfbuf);
-        for (auto i = 0; i < len; i++) {
+        for (size_t i = 0; i < len; i++) {
             _text_buffer.insert_character(utfbuf[i]);
         }
     }
@@ -362,23 +362,18 @@ void draw_buffer(void)
     Vector2 pos = { 0, 0 };
     const float scale_factor = _text_buffer.font_size / (float)font.baseSize;
     const float line_advance = font.recs[GetGlyphIndex(font, ' ')].height * scale_factor;
-    Rectangle last_c_r = { 0 };
+    Rectangle last_c_r = {};
     for (std::size_t linen = 0; linen < _text_buffer.get_line_count(); linen++) {
         auto& current_line = _text_buffer.lines[linen];
         for (size_t col = 0; col < current_line.size();) {
-            // int c = current_line[col];
             int csz = 1;
             int c = GetCodepoint((char*)&current_line.data()[col], &csz);
-            // if (csz > 1) {
-            //     std::printf("ż%d %.*s\n",csz, csz, (char*)&current_line.data()[col]);
-            //     std::flush(std::cout);
-            // }
             int idx = GetGlyphIndex(font, c);
             float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
-            float glyph_height = font.recs[idx].height * scale_factor;
+            // float glyph_height = font.recs[idx].height * scale_factor;
 
             auto r = GetGlyphAtlasRec(font, idx);
-            if (linen == _text_buffer.cursor.line && col == _text_buffer.cursor.col) {
+            if ((long)linen == _text_buffer.cursor.line && (long)col == _text_buffer.cursor.col) {
                 DrawRectangleRec(Rectangle {
                                      .x = pos.x,
                                      .y = pos.y,
@@ -391,7 +386,7 @@ void draw_buffer(void)
             col += csz;
             last_c_r = r;
         }
-        if (_text_buffer.cursor.line == linen && _text_buffer.cursor.col == current_line.size()) {
+        if (_text_buffer.cursor.line == (long)linen && _text_buffer.cursor.col == (long)current_line.size()) {
             DrawRectangleRec(Rectangle {
                                  .x = pos.x,
                                  .y = pos.y,
@@ -434,8 +429,7 @@ Font try_load_font(char* path)
 int main(int argc, char** args)
 {
     _text_buffer.lines = { {
-        u8"Śmiechawa ŋŋœœ ŋ œ ó ó Ó",
-        // u8"gÓÓÓÓwno łłł „” "
+        u8"Welcome to Bootleg!",
     } };
     InitWindow(800, 600, "bootleg");
     DEFER(CloseWindow());
