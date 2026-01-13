@@ -7,7 +7,9 @@
 #include <optional>
 #include <print>
 #include <raylib.h>
+
 constexpr const int FONT_SIZE = 24;
+constexpr const int GLYPH_SPACING = 2;
 
 #define IsKeyPressedOrRepeat(KEY) (IsKeyPressed(KEY) || IsKeyPressedRepeat(KEY))
 #define AnySpecialDown(SPECIAL_KEY) (IsKeyDown(KEY_LEFT_##SPECIAL_KEY) || IsKeyDown(KEY_RIGHT_##SPECIAL_KEY))
@@ -330,10 +332,10 @@ TextBuffer::Cursor detect_point_over_buffer(const Vector2 point){
         int c = GetCodepoint((char*)&line.contents.data()[col], &csz);
         int idx = GetGlyphIndex(font, c);
         float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
-        auto r = GetGlyphAtlasRec(font, idx);
-        if(point.x >= advance && point.x <= advance + glyph_width)
+        // auto r = GetGlyphAtlasRec(font, idx);
+        if(point.x >= advance && point.x <= advance + glyph_width + GLYPH_SPACING)
             return TextBuffer::Cursor{ .line = linen, .col = col };
-        advance += glyph_width;
+        advance += glyph_width + GLYPH_SPACING;
         col += csz;
     }
     return TextBuffer::Cursor { .line = linen, .col = (long)line.contents.size() };
@@ -453,12 +455,12 @@ void draw_buffer(void)
                 DrawRectangleRec(Rectangle {
                                      .x = pos.x,
                                      .y = pos.y,
-                                     .width = 2.,
+                                     .width = GLYPH_SPACING,
                                      .height = line_advance },
                     WHITE);
             }
             DrawTextCodepoint(font, c, pos, _text_buffer.font_size, WHITE);
-            pos.x += glyph_width + 2;
+            pos.x += glyph_width + GLYPH_SPACING;
             col += csz;
             last_c_r = r;
         }
@@ -466,7 +468,7 @@ void draw_buffer(void)
             DrawRectangleRec(Rectangle {
                                  .x = pos.x,
                                  .y = pos.y,
-                                 .width = 2.,
+                                 .width = GLYPH_SPACING,
                                  .height = line_advance },
                 WHITE);
         }
