@@ -4,18 +4,9 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
-#include <filesystem>
-#include <iostream>
 #include <optional>
-#include <ostream>
 #include <print>
 #include <raylib.h>
-
-#define CTRL true
-#define META true
-#define SHIFT true
-#define NO false
-
 constexpr const int FONT_SIZE = 24;
 
 #define IsKeyPressedOrRepeat(KEY) (IsKeyPressed(KEY) || IsKeyPressedRepeat(KEY))
@@ -24,11 +15,15 @@ constexpr const int FONT_SIZE = 24;
 struct TextBuffer {
     using char_t = char8_t;
     using line_t = std::basic_string<char_t>;
+    struct Line {
+        line_t contents{};
+        std::optional<Rectangle> dims{};
+    };
     struct Cursor {
         long line {};
         long col {};
     };
-    std::vector<line_t> lines = { {} };
+    std::vector<Line> lines = { {} };
     Cursor cursor = {};
     Font font {};
     int font_size = FONT_SIZE;
@@ -47,15 +42,15 @@ struct TextBuffer {
     }
     bool is_cursor_at_end(void)
     {
-        return (cursor.col == (long)lines.back().size() && cursor.line == (long)lines.size() - 1);
+        return (cursor.col == (long)lines.back().contents.size() && cursor.line == (long)lines.size() - 1);
     }
     line_t& current_line(void)
     {
-        return lines[cursor.line];
+        return lines[cursor.line].contents;
     }
     const line_t& current_line(void) const
     {
-        return lines[cursor.line];
+        return lines[cursor.line].contents;
     }
     // if | is the cursor then x is the character
     //
@@ -229,7 +224,7 @@ struct TextBuffer {
         if (cursor.line > 0) {
             cursor.line--;
             jump_cursor_to_end();
-            current_line().append(lines[cursor.line + 1]);
+            current_line().append(lines[cursor.line + 1].contents);
             delete_line(cursor.line + 1);
             return true;
         }
@@ -238,7 +233,7 @@ struct TextBuffer {
     bool concat_forward(void)
     {
         if (cursor.line < (long)lines.size() - 1) {
-            current_line().append(lines[cursor.line + 1]);
+            current_line().append(lines[cursor.line + 1].contents);
             delete_line(cursor.line + 1);
             return true;
         }
@@ -309,7 +304,7 @@ struct TextBuffer {
         lines.resize(lines.size() + 1);
         std::shift_right(lines.begin() + cursor.line + 1, lines.end(), 1);
         lines.insert(lines.begin() + cursor.line + 1, {});
-        auto& next_line = lines[cursor.line + 1];
+        auto& next_line = lines[cursor.line + 1].contents;
         if (cursor.col < (long)current_line().size()) {
             next_line.resize(current_line().size() - cursor.col);
             std::copy(current_line().begin() + cursor.col, current_line().end(), next_line.begin());
@@ -322,8 +317,37 @@ struct TextBuffer {
 
 static TextBuffer _text_buffer = {};
 
+TextBuffer::Cursor detect_point_over_buffer(const Vector2 point){
+    const Font font = _text_buffer.font;
+    const float scale_factor = _text_buffer.font_size / (float)font.baseSize;
+    const float line_advance = font.recs[GetGlyphIndex(font, ' ')].height * scale_factor;
+    long linen = point.y == 0 ? 0 : (long)(point.y / line_advance) % _text_buffer.get_line_count();
+    auto& line = _text_buffer.lines[linen];
+    if(line.contents.size() == 0) return TextBuffer::Cursor { .line = linen, .col = 0 };
+    float advance = 0;
+    for (long col = 0; col < (long)line.contents.size();) {
+        int csz = 1;
+        int c = GetCodepoint((char*)&line.contents.data()[col], &csz);
+        int idx = GetGlyphIndex(font, c);
+        float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
+        auto r = GetGlyphAtlasRec(font, idx);
+        if(point.x >= advance && point.x <= advance + glyph_width)
+            return TextBuffer::Cursor{ .line = linen, .col = col };
+        advance += glyph_width;
+        col += csz;
+    }
+    return TextBuffer::Cursor { .line = linen, .col = (long)line.contents.size() };
+}
+
+void update_buffer_mouse(void){
+    if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+        _text_buffer.cursor = detect_point_over_buffer(GetMousePosition());
+    }
+}
+
 void update_buffer(void)
 {
+    update_buffer_mouse();
     if (IsKeyPressedOrRepeat(KEY_LEFT)) {
         if (AnySpecialDown(CONTROL)) {
             _text_buffer.move_cursor_word(-1);
@@ -417,9 +441,9 @@ void draw_buffer(void)
     Rectangle last_c_r = {};
     for (std::size_t linen = 0; linen < _text_buffer.get_line_count(); linen++) {
         auto& current_line = _text_buffer.lines[linen];
-        for (size_t col = 0; col < current_line.size();) {
+        for (size_t col = 0; col < current_line.contents.size();) {
             int csz = 1;
-            int c = GetCodepoint((char*)&current_line.data()[col], &csz);
+            int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
             int idx = GetGlyphIndex(font, c);
             float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
             // float glyph_height = font.recs[idx].height * scale_factor;
@@ -438,7 +462,7 @@ void draw_buffer(void)
             col += csz;
             last_c_r = r;
         }
-        if (_text_buffer.cursor.line == (long)linen && _text_buffer.cursor.col == (long)current_line.size()) {
+        if (_text_buffer.cursor.line == (long)linen && _text_buffer.cursor.col == (long)current_line.contents.size()) {
             DrawRectangleRec(Rectangle {
                                  .x = pos.x,
                                  .y = pos.y,
