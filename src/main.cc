@@ -84,38 +84,47 @@ struct TextBuffer {
         cursor.line = std::clamp(cursor.line, (long)0, (long)lines.size() - 1);
         cursor.col = std::clamp(cursor.col, (long)0, (long)current_line().size());
     }
-    void move_cursor_word(long amount)
+    long move_cursor_word(long amount)
     {
-        // TODO: fix this
         if (!amount)
-            return;
+            return 0;
         const auto amount_abs = std::abs(amount);
         const auto inc = (amount / std::abs(amount));
         const auto end_check = [&]() {
             return (inc > 0 && is_cursor_at_end()) || (inc < 0 && is_cursor_at_begining());
         };
-        const auto under_check = [](std::optional<char_t> u) {
+        // bool is_under_punct = false;
+        const auto under_check = [&](std::optional<char_t>& u) {
+            // is_under_punct = false;
             if (!u.has_value())
                 return true;
             auto uc = u.value();
-            return (bool)std::isspace(uc) || (bool)!std::isalnum(uc);
+            return (bool)std::isspace(uc) || ((bool)!std::isalnum(uc) && utf8::get_utf8_bytes_len(uc) != -1);
+            // is_under_punct = std::ispunct(uc);
+            // return (std::isspace(uc) || is_under_punct);
         };
-        const auto after_check = [](std::optional<char_t> a) {
+        const auto after_check = [](std::optional<char_t>& a) {
             if (!a.has_value())
                 return false;
             auto ac = a.value();
-            return ((bool)std::isalnum(ac) || (bool)std::ispunct(ac) || utf8::get_utf8_bytes_len(ac) != 1) && !std::isspace(ac);
+            return ((bool)std::isalnum(ac) || utf8::get_utf8_bytes_len(ac) != 1) && !std::isspace(ac);
+            // return ((bool)std::isalnum(ac) || (bool)std::ispunct(ac) || utf8::get_utf8_bytes_len(ac) != 1);
         };
+        const auto is_punct = [](std::optional<char_t>& a) {
+            if (!a)
+                return false;
+            return (bool)std::ispunct(a.value());
+        };
+        auto moved = 0;
         auto i = 0;
         while (i < amount_abs && !end_check()) {
-            auto moved = move_cursor_h(inc);
-            // if (moved == 0)
-            //     break;
+            moved += move_cursor_h(inc);
             auto u = get_char_under_cursor();
             auto a = get_char_after_cursor();
-            if (under_check(u) && after_check(a))
+            if (is_punct(a) || (under_check(u) && after_check(a)))
                 i++;
         }
+        return moved;
     }
     long move_cursor_left(long amount = 1)
     {
@@ -259,6 +268,28 @@ struct TextBuffer {
         current_line().erase(current_line().begin() + start_col, current_line().begin() + cursor.col);
         cursor.col = start_col;
     }
+    void delete_words_back(unsigned long amount = 1){
+        auto end = cursor.line;
+        auto moved = move_cursor_word(-amount);
+        auto start = cursor.line;
+        auto line_diff = end - start;
+        while (line_diff-- > 0) {
+            concat_forward();
+        }
+        current_line().erase(current_line().begin() + cursor.col, current_line().begin() + cursor.col + moved);
+    }
+    void delete_words_forward(unsigned long amount = 1){
+        auto start = cursor.line;
+        auto start_col = cursor.col;
+        move_cursor_word(amount);
+        auto end = cursor.line;
+        auto line_diff = end - start;
+        while (line_diff-- > 0) {
+            concat_backward();
+        }
+        current_line().erase(current_line().begin() + start_col, current_line().begin() + cursor.col);
+        cursor.col = start_col;
+    }
     void insert_character(char_t c)
     {
         current_line().push_back('!');
@@ -338,10 +369,16 @@ void update_buffer(void)
         _text_buffer.jump_cursor_to_start();
     }
     if (IsKeyPressedOrRepeat(KEY_BACKSPACE)) {
-        _text_buffer.delete_characters_back();
+        if(AnySpecialDown(CONTROL))
+            _text_buffer.delete_words_back();
+        else
+            _text_buffer.delete_characters_back();
     }
     if (IsKeyPressedOrRepeat(KEY_DELETE)) {
-        _text_buffer.delete_characters_forward();
+        if(AnySpecialDown(CONTROL))
+            _text_buffer.delete_words_forward();
+        else
+            _text_buffer.delete_characters_forward();
     }
     if (IsKeyPressedOrRepeat(KEY_ENTER)) {
         _text_buffer.insert_newline();
@@ -444,7 +481,7 @@ Font try_load_font(char* path)
 int main(int argc, char** args)
 {
     _text_buffer.lines = { {
-        u8"Welcome to Bootleg!",
+        u8"Welcome to Bootleg! ąąą ęęę śðæśðæ",
     } };
     InitWindow(800, 600, "bootleg");
     DEFER(CloseWindow());
