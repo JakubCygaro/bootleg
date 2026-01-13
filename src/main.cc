@@ -91,16 +91,21 @@ struct TextBuffer {
             return;
         const auto amount_abs = std::abs(amount);
         const auto inc = (amount / std::abs(amount));
-        auto end_check = [&]() {
+        const auto end_check = [&]() {
             return (inc > 0 && is_cursor_at_end()) || (inc < 0 && is_cursor_at_begining());
         };
-        auto under_check = [](char_t uc) {
-            return (std::isspace(uc) || !std::isalnum(uc)) && utf8::get_utf8_bytes_len(uc) != 1;
+        const auto under_check = [](std::optional<char_t> u) {
+            if(!u)
+                return true;
+            auto uc = u.value();
+            return (bool)std::isspace(uc);
         };
-        auto after_check = [](char_t ac) {
-            return (std::isalnum(ac) || utf8::get_utf8_bytes_len(ac) >= 1);
+        const auto after_check = [](std::optional<char_t> a) {
+            if(!a)
+                return false;
+            auto ac = a.value();
+            return (bool)std::isalnum(ac) || utf8::get_utf8_bytes_len(ac) != 1;
         };
-        // auto prev = get_char_under_cursor();
         auto i = 0;
         while (i < amount_abs && !end_check()) {
             auto moved = move_cursor_h(inc);
@@ -108,20 +113,8 @@ struct TextBuffer {
                 break;
             auto u = get_char_under_cursor();
             auto a = get_char_after_cursor();
-            if (u && a && (under_check(u.value()) && after_check(a.value()))) {
+            if(under_check(u) && after_check(a))
                 i++;
-            } else if (u && under_check(u.value())) {
-                i++;
-            } else if (a && under_check(a.value())) {
-                i++;
-            }
-
-            // if (c && prev) {
-            //     if (std::isalnum(prev.value()) && (!std::isalnum(c.value()))) {
-            //         i += inc;
-            //     }
-            // }
-            // prev = c;
         }
     }
     long move_cursor_left(long amount = 1)
