@@ -71,7 +71,7 @@ struct TextBuffer {
     // a|x
     std::optional<line_t::value_type> get_char_after_cursor(void) const
     {
-        if (current_line().empty() || cursor.col == (long)current_line().size())
+        if (current_line().empty() || cursor.col >= (long)current_line().size())
             return std::nullopt;
         return current_line()[cursor.col];
     }
@@ -95,25 +95,25 @@ struct TextBuffer {
             return (inc > 0 && is_cursor_at_end()) || (inc < 0 && is_cursor_at_begining());
         };
         const auto under_check = [](std::optional<char_t> u) {
-            if(!u)
+            if (!u.has_value())
                 return true;
             auto uc = u.value();
-            return (bool)std::isspace(uc);
+            return (bool)std::isspace(uc) || (bool)!std::isalnum(uc);
         };
         const auto after_check = [](std::optional<char_t> a) {
-            if(!a)
+            if (!a.has_value())
                 return false;
             auto ac = a.value();
-            return (bool)std::isalnum(ac) || utf8::get_utf8_bytes_len(ac) != 1;
+            return ((bool)std::isalnum(ac) || (bool)std::ispunct(ac) || utf8::get_utf8_bytes_len(ac) != 1) && !std::isspace(ac);
         };
         auto i = 0;
         while (i < amount_abs && !end_check()) {
             auto moved = move_cursor_h(inc);
-            if (moved == 0)
-                break;
+            // if (moved == 0)
+            //     break;
             auto u = get_char_under_cursor();
             auto a = get_char_after_cursor();
-            if(under_check(u) && after_check(a))
+            if (under_check(u) && after_check(a))
                 i++;
         }
     }
