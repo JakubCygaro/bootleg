@@ -57,12 +57,18 @@ struct TextBuffer {
     {
         return lines[cursor.line];
     }
+    // if | is the cursor then x is the character
+    //
+    // x|a
     std::optional<line_t::value_type> get_char_under_cursor(void) const
     {
-        if (cursor.col <= 0 || cursor.col >= (long)current_line().size())
+        if (cursor.col <= 0 || cursor.col > (long)current_line().size())
             return std::nullopt;
         return current_line()[cursor.col - 1];
     }
+    // if | is the cursor then x is the character
+    //
+    // a|x
     std::optional<line_t::value_type> get_char_after_cursor(void) const
     {
         if (current_line().empty() || cursor.col == (long)current_line().size())
@@ -80,7 +86,7 @@ struct TextBuffer {
     }
     void move_cursor_word(long amount)
     {
-        //TODO: fix this
+        // TODO: fix this
         if (!amount)
             return;
         const auto amount_abs = std::abs(amount);
@@ -88,17 +94,34 @@ struct TextBuffer {
         auto end_check = [&]() {
             return (inc > 0 && is_cursor_at_end()) || (inc < 0 && is_cursor_at_begining());
         };
-        auto prev = get_char_under_cursor();
+        auto under_check = [](char_t uc) {
+            return (std::isspace(uc) || !std::isalnum(uc)) && utf8::get_utf8_bytes_len(uc) != 1;
+        };
+        auto after_check = [](char_t ac) {
+            return (std::isalnum(ac) || utf8::get_utf8_bytes_len(ac) >= 1);
+        };
+        // auto prev = get_char_under_cursor();
         auto i = 0;
-        while (std::abs(i) < amount_abs && !end_check()) {
-            move_cursor_h(inc);
-            auto c = get_char_under_cursor();
-            if (c && prev) {
-                if (std::isalnum(prev.value()) && (!std::isalnum(c.value()))) {
-                    i += inc;
-                }
+        while (i < amount_abs && !end_check()) {
+            auto moved = move_cursor_h(inc);
+            if (moved == 0)
+                break;
+            auto u = get_char_under_cursor();
+            auto a = get_char_after_cursor();
+            if (u && a && (under_check(u.value()) && after_check(a.value()))) {
+                i++;
+            } else if (u && under_check(u.value())) {
+                i++;
+            } else if (a && under_check(a.value())) {
+                i++;
             }
-            prev = c;
+
+            // if (c && prev) {
+            //     if (std::isalnum(prev.value()) && (!std::isalnum(c.value()))) {
+            //         i += inc;
+            //     }
+            // }
+            // prev = c;
         }
     }
     long move_cursor_left(long amount = 1)
@@ -112,7 +135,6 @@ struct TextBuffer {
     // returns how many positions the cursor moved (across lines, and counted in bytes)
     long move_cursor_h(long amount)
     {
-        // cursor.col += amount;
         const auto amount_abs = std::abs(amount);
         const auto inc = (amount / std::abs(amount));
         auto moved = 0;
@@ -163,21 +185,20 @@ struct TextBuffer {
     }
     long move_cursor_v(long amount)
     {
-        if (cursor.line + amount < 0){
+        if (cursor.line + amount < 0) {
             amount = -cursor.line;
-        } else if(cursor.line + amount > (long)lines.size() - 1){
+        } else if (cursor.line + amount > (long)lines.size() - 1) {
             amount = (long)lines.size() - 1 - cursor.line;
         }
         cursor.line += amount;
         auto current = get_char_under_cursor();
-        if(current){
+        if (current) {
             auto crlen = utf8::get_utf8_bytes_len(current.value());
-            if(crlen > 1){
+            if (crlen > 1) {
                 cursor.col += crlen - 1;
-            }
-            else if(crlen == -1){
+            } else if (crlen == -1) {
                 auto next = get_char_after_cursor();
-                while(next.has_value() && utf8::get_utf8_bytes_len(next.value()) == -1){
+                while (next.has_value() && utf8::get_utf8_bytes_len(next.value()) == -1) {
                     next = get_char_after_cursor();
                     cursor.col++;
                 }
