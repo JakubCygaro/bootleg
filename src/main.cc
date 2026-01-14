@@ -56,8 +56,7 @@ struct TextBuffer {
         Cursor start {};
         Cursor end {};
         bool is_cursor_within(const Cursor& c) const noexcept{
-            // std::println("c {{ {}, {} }}, start {{ {}, {} }}", c.line, c.col, start.line, start.col);
-            return (c >= this->start && c <= this->end);
+            return (c > this->start && c <= this->end);
         }
     };
 
@@ -230,13 +229,14 @@ public:
         return moved;
     }
     void update_selection(void){
+
         if(cursor < selection->start){
             // selection->end = selection->start;
             // selection->start = { cursor.line, cursor.col - 1 };
             selection->start = cursor;
         }
         else {
-            selection->end = { cursor.line, cursor.col - 0 };
+            selection->end = { cursor.line, cursor.col};
         }
     }
     long count_chars_to_cursor_in_line(void){
