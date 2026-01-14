@@ -18,18 +18,57 @@ struct TextBuffer {
     using char_t = char8_t;
     using line_t = std::basic_string<char_t>;
     struct Line {
-        line_t contents{};
-        std::optional<Rectangle> dims{};
+        line_t contents {};
+        std::optional<Rectangle> dims {};
     };
     struct Cursor {
         long line {};
         long col {};
+        bool operator==(const Cursor& b) const
+        {
+            return (this->line == b.line) && (this->col == b.col);
+        }
+        bool operator!=(const Cursor& b) const
+        {
+            return !(b == *this);
+        }
+        bool operator<(const Cursor& b) const
+        {
+            return (this->line < b.line) || (this->line == b.line && this->col < b.col);
+        }
+        bool operator>(const Cursor& b) const
+        {
+            return b < *this;
+        }
+        bool operator<=(const Cursor& b) const
+        {
+            return (*this < b) || (*this == b);
+        }
+        bool operator>=(const Cursor& b) const
+        {
+            return (*this > b) || (*this == b);
+        }
     };
     std::vector<Line> lines = { {} };
     Cursor cursor = {};
     Font font {};
+    struct Selection {
+        Cursor start {};
+        Cursor end {};
+        bool is_cursor_within(const Cursor& c) const noexcept{
+            // std::println("c {{ {}, {} }}, start {{ {}, {} }}", c.line, c.col, start.line, start.col);
+            return (c >= this->start && c <= this->end);
+        }
+    };
+
+private:
+    std::optional<Selection> selection {};
+
+public:
     int font_size = FONT_SIZE;
     int spacing = 10;
+    Color foreground_color = WHITE;
+    Color background_color = BLACK;
     void increase_font_size()
     {
         font_size = std::clamp(font_size + 1, 10, 60);
@@ -53,6 +92,9 @@ struct TextBuffer {
     const line_t& current_line(void) const
     {
         return lines[cursor.line].contents;
+    }
+    const std::optional<Selection>& get_selection(void){
+        return selection;
     }
     // if | is the cursor then x is the character
     //
@@ -81,7 +123,7 @@ struct TextBuffer {
         cursor.line = std::clamp(cursor.line, (long)0, (long)lines.size() - 1);
         cursor.col = std::clamp(cursor.col, (long)0, (long)current_line().size());
     }
-    long move_cursor_word(long amount)
+    long move_cursor_word(long amount, bool with_selection = false)
     {
         if (!amount)
             return 0;
@@ -115,7 +157,7 @@ struct TextBuffer {
         auto moved = 0;
         auto i = 0;
         while (i < amount_abs && !end_check()) {
-            moved += move_cursor_h(inc);
+            moved += move_cursor_h(inc, with_selection);
             auto u = get_char_under_cursor();
             auto a = get_char_after_cursor();
             if (is_punct(a) || (under_check(u) && after_check(a)))
@@ -123,17 +165,19 @@ struct TextBuffer {
         }
         return moved;
     }
-    long move_cursor_left(long amount = 1)
+    long move_cursor_left(long amount = 1, bool with_selection = false)
     {
-        return move_cursor_h(-amount);
+        return move_cursor_h(-amount, with_selection);
     }
-    long move_cursor_right(long amount = 1)
+    long move_cursor_right(long amount = 1, bool with_selection = false)
     {
-        return move_cursor_h(amount);
+        return move_cursor_h(amount, with_selection);
     }
     // returns how many positions the cursor moved (across lines, and counted in bytes)
-    long move_cursor_h(long amount)
+    long move_cursor_h(long amount, bool with_selection = false)
     {
+        if(with_selection && !selection)
+            start_selection();
         const auto amount_abs = std::abs(amount);
         const auto inc = (amount / std::abs(amount));
         auto moved = 0;
@@ -171,48 +215,81 @@ struct TextBuffer {
                 cursor.col = 0;
             } else if (cursor.col < 0 && cursor.line == 0) {
                 cursor.col = 0;
-                return moved;
+                // return moved;
+                break;
             } else if (cursor.col > (long)current_line().size() && cursor.line == (long)lines.size() - 1) {
                 cursor.col = (long)current_line().size();
-                return moved;
+                // return moved;
+                break;
             } else {
                 moved++;
             }
             // clamp_cursor();
         }
+        if(with_selection) update_selection();
         return moved;
     }
-    long move_cursor_v(long amount)
+    void update_selection(void){
+        if(cursor < selection->end){
+            selection->end = selection->start;
+            selection->start = cursor;
+        }
+        else {
+            selection->end = { cursor.line, cursor.col - 1 };
+        }
+    }
+    long count_chars_to_cursor_in_line(void){
+        const auto& line = current_line();
+        long chars = 0;
+        for(long i = 0; i < (long)line.size();){
+            if(i == cursor.col) break;
+            i += utf8::get_utf8_bytes_len(line[i]);
+            chars++;
+        }
+        return chars;
+    }
+    long move_cursor_v(long amount, bool with_selection = false)
     {
+        if(with_selection && !selection)
+            start_selection();
         if (cursor.line + amount < 0) {
             amount = -cursor.line;
         } else if (cursor.line + amount > (long)lines.size() - 1) {
             amount = (long)lines.size() - 1 - cursor.line;
         }
+        auto chars = count_chars_to_cursor_in_line();
         cursor.line += amount;
-        auto current = get_char_under_cursor();
-        if (current) {
-            auto crlen = utf8::get_utf8_bytes_len(current.value());
-            if (crlen > 1) {
-                cursor.col += crlen - 1;
-            } else if (crlen == -1) {
-                auto next = get_char_after_cursor();
-                while (next.has_value() && utf8::get_utf8_bytes_len(next.value()) == -1) {
-                    next = get_char_after_cursor();
-                    cursor.col++;
-                }
-            }
-        }
-        cursor.col = std::clamp(cursor.col, (long)0, (long)current_line().size());
+        jump_cursor_to_start();
+        if(chars == 0)
+            jump_cursor_to_start();
+        else if((long)current_line().size() < chars )
+            jump_cursor_to_end();
+        else
+            move_cursor_right(chars);
+        // auto current = get_char_under_cursor();
+        // if (current) {
+        //     auto crlen = utf8::get_utf8_bytes_len(current.value());
+        //     if (crlen > 1) {
+        //         cursor.col += crlen - 1;
+        //     } else if (crlen == -1) {
+        //         auto next = get_char_after_cursor();
+        //         while (next.has_value() && utf8::get_utf8_bytes_len(next.value()) == -1) {
+        //             next = get_char_after_cursor();
+        //             cursor.col++;
+        //         }
+        //     }
+        // }
+        // cursor.col = std::clamp(cursor.col, (long)0, (long)current_line().size());
+        if(with_selection) update_selection();
         return amount;
     }
-    void move_cursor_down(void)
+    void move_cursor_down(long amount = 1, bool with_selection = false)
     {
-        move_cursor_v(1);
+        move_cursor_v(amount, with_selection);
     }
-    void move_cursor_up(void)
+    void move_cursor_up(long amount = 1, bool with_selection = false)
     {
-        move_cursor_v(-1);
+        move_cursor_v(-amount, with_selection);
     }
     void delete_line(size_t line_num)
     {
@@ -265,7 +342,8 @@ struct TextBuffer {
         current_line().erase(current_line().begin() + start_col, current_line().begin() + cursor.col);
         cursor.col = start_col;
     }
-    void delete_words_back(unsigned long amount = 1){
+    void delete_words_back(unsigned long amount = 1)
+    {
         auto end = cursor.line;
         auto moved = move_cursor_word(-amount);
         auto start = cursor.line;
@@ -275,7 +353,8 @@ struct TextBuffer {
         }
         current_line().erase(current_line().begin() + cursor.col, current_line().begin() + cursor.col + moved);
     }
-    void delete_words_forward(unsigned long amount = 1){
+    void delete_words_forward(unsigned long amount = 1)
+    {
         auto start = cursor.line;
         auto start_col = cursor.col;
         move_cursor_word(amount);
@@ -293,13 +372,15 @@ struct TextBuffer {
         std::shift_right(current_line().begin() + cursor.col, current_line().end(), 1);
         current_line()[cursor.col++] = static_cast<char_t>(c);
     }
-    void jump_cursor_to_end(void)
+    void jump_cursor_to_end(bool with_selection = false)
     {
         cursor.col = current_line().size();
+        if(with_selection) update_selection();
     }
-    void jump_cursor_to_start(void)
+    void jump_cursor_to_start(bool with_selection = false)
     {
         cursor.col = 0;
+        if(with_selection) update_selection();
     }
     void insert_newline(void)
     {
@@ -315,17 +396,27 @@ struct TextBuffer {
         cursor.line++;
         cursor.col = 0;
     }
+    void start_selection(void)
+    {
+        selection = { cursor, cursor };
+    }
+    void clear_selection(void)
+    {
+        selection = std::nullopt;
+    }
 };
 
 static TextBuffer _text_buffer = {};
 
-TextBuffer::Cursor detect_point_over_buffer(const Vector2 point){
+TextBuffer::Cursor detect_point_over_buffer(const Vector2 point)
+{
     const Font font = _text_buffer.font;
     const float scale_factor = _text_buffer.font_size / (float)font.baseSize;
     const float line_advance = font.recs[GetGlyphIndex(font, ' ')].height * scale_factor;
     long linen = point.y == 0 ? 0 : (long)(point.y / line_advance) % _text_buffer.get_line_count();
     auto& line = _text_buffer.lines[linen];
-    if(line.contents.size() == 0) return TextBuffer::Cursor { .line = linen, .col = 0 };
+    if (line.contents.size() == 0)
+        return TextBuffer::Cursor { .line = linen, .col = 0 };
     float advance = 0;
     for (long col = 0; col < (long)line.contents.size();) {
         int csz = 1;
@@ -333,16 +424,17 @@ TextBuffer::Cursor detect_point_over_buffer(const Vector2 point){
         int idx = GetGlyphIndex(font, c);
         float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
         // auto r = GetGlyphAtlasRec(font, idx);
-        if(point.x >= advance && point.x <= advance + glyph_width + GLYPH_SPACING)
-            return TextBuffer::Cursor{ .line = linen, .col = col };
+        if (point.x >= advance && point.x <= advance + glyph_width + GLYPH_SPACING)
+            return TextBuffer::Cursor { .line = linen, .col = col };
         advance += glyph_width + GLYPH_SPACING;
         col += csz;
     }
     return TextBuffer::Cursor { .line = linen, .col = (long)line.contents.size() };
 }
 
-void update_buffer_mouse(void){
-    if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+void update_buffer_mouse(void)
+{
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         _text_buffer.cursor = detect_point_over_buffer(GetMousePosition());
     }
 }
@@ -350,43 +442,45 @@ void update_buffer_mouse(void){
 void update_buffer(void)
 {
     update_buffer_mouse();
+    const bool shift_down = AnySpecialDown(SHIFT);
+    const auto start_pos = _text_buffer.cursor;
     if (IsKeyPressedOrRepeat(KEY_LEFT)) {
         if (AnySpecialDown(CONTROL)) {
-            _text_buffer.move_cursor_word(-1);
+            _text_buffer.move_cursor_word(-1, shift_down);
         } else {
-            _text_buffer.move_cursor_left();
+            _text_buffer.move_cursor_left(1, shift_down);
         }
     }
     if (IsKeyPressedOrRepeat(KEY_H) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_left();
+        _text_buffer.move_cursor_left(1, shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_B) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_word(-1);
+        _text_buffer.move_cursor_word(-1, shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_RIGHT)) {
         if (AnySpecialDown(CONTROL)) {
-            _text_buffer.move_cursor_word(1);
+            _text_buffer.move_cursor_word(1, shift_down);
         } else {
-            _text_buffer.move_cursor_right();
+            _text_buffer.move_cursor_right(1, shift_down);
         }
     }
     if (IsKeyPressedOrRepeat(KEY_L) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_right();
+        _text_buffer.move_cursor_right(1, shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_W) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_word(1);
+        _text_buffer.move_cursor_word(1, shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_UP)) {
-        _text_buffer.move_cursor_up();
+        _text_buffer.move_cursor_up(1, shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_K) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_up();
+        _text_buffer.move_cursor_up(1, shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_DOWN)) {
-        _text_buffer.move_cursor_down();
+        _text_buffer.move_cursor_down(1, shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_J) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_down();
+        _text_buffer.move_cursor_down(1, shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_END)) {
         _text_buffer.jump_cursor_to_end();
@@ -395,13 +489,13 @@ void update_buffer(void)
         _text_buffer.jump_cursor_to_start();
     }
     if (IsKeyPressedOrRepeat(KEY_BACKSPACE)) {
-        if(AnySpecialDown(CONTROL))
+        if (AnySpecialDown(CONTROL))
             _text_buffer.delete_words_back();
         else
             _text_buffer.delete_characters_back();
     }
     if (IsKeyPressedOrRepeat(KEY_DELETE)) {
-        if(AnySpecialDown(CONTROL))
+        if (AnySpecialDown(CONTROL))
             _text_buffer.delete_words_forward();
         else
             _text_buffer.delete_characters_forward();
@@ -423,7 +517,7 @@ void update_buffer(void)
     if (IsKeyPressedOrRepeat(KEY_MINUS) && AnySpecialDown(CONTROL)) {
         _text_buffer.decrease_font_size();
     }
-    _text_buffer.clamp_cursor();
+    // _text_buffer.clamp_cursor();
     static unsigned char utfbuf[4] = { 0 };
     int c = 0;
     while ((c = GetCharPressed())) {
@@ -432,10 +526,14 @@ void update_buffer(void)
             _text_buffer.insert_character(utfbuf[i]);
         }
     }
+    if(start_pos != _text_buffer.cursor && !shift_down)
+        _text_buffer.clear_selection();
 }
 
 void draw_buffer(void)
 {
+    // for selection checking
+    TextBuffer::Cursor cursor = {};
     const Font font = _text_buffer.font;
     Vector2 pos = { 0, 0 };
     const float scale_factor = _text_buffer.font_size / (float)font.baseSize;
@@ -447,7 +545,7 @@ void draw_buffer(void)
             int csz = 1;
             int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
             int idx = GetGlyphIndex(font, c);
-            float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
+            const float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
             // float glyph_height = font.recs[idx].height * scale_factor;
 
             auto r = GetGlyphAtlasRec(font, idx);
@@ -459,7 +557,19 @@ void draw_buffer(void)
                                      .height = line_advance },
                     WHITE);
             }
-            DrawTextCodepoint(font, c, pos, _text_buffer.font_size, WHITE);
+            cursor.col = col;
+            cursor.line = linen;
+            if(_text_buffer.get_selection().has_value() && _text_buffer.get_selection()->is_cursor_within(cursor)){
+                DrawRectangleRec(Rectangle {
+                        .x = pos.x,
+                        .y = pos.y,
+                        .width = glyph_width + GLYPH_SPACING,
+                        .height = line_advance },
+                        _text_buffer.foreground_color);
+                DrawTextCodepoint(font, c, pos, _text_buffer.font_size, _text_buffer.background_color);
+            } else {
+                DrawTextCodepoint(font, c, pos, _text_buffer.font_size, _text_buffer.foreground_color);
+            }
             pos.x += glyph_width + GLYPH_SPACING;
             col += csz;
             last_c_r = r;
@@ -470,7 +580,7 @@ void draw_buffer(void)
                                  .y = pos.y,
                                  .width = GLYPH_SPACING,
                                  .height = line_advance },
-                WHITE);
+                _text_buffer.foreground_color);
         }
         pos.x = 0;
         pos.y += line_advance;
