@@ -230,12 +230,13 @@ public:
         return moved;
     }
     void update_selection(void){
-        if(cursor < selection->end){
-            selection->end = selection->start;
+        if(cursor < selection->start){
+            // selection->end = selection->start;
+            // selection->start = { cursor.line, cursor.col - 1 };
             selection->start = cursor;
         }
         else {
-            selection->end = { cursor.line, cursor.col - 1 };
+            selection->end = { cursor.line, cursor.col - 0 };
         }
     }
     long count_chars_to_cursor_in_line(void){
@@ -483,10 +484,10 @@ void update_buffer(void)
         _text_buffer.move_cursor_down(1, shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_END)) {
-        _text_buffer.jump_cursor_to_end();
+        _text_buffer.jump_cursor_to_end(shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_HOME)) {
-        _text_buffer.jump_cursor_to_start();
+        _text_buffer.jump_cursor_to_start(shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_BACKSPACE)) {
         if (AnySpecialDown(CONTROL))
@@ -557,7 +558,7 @@ void draw_buffer(void)
                                      .height = line_advance },
                     WHITE);
             }
-            cursor.col = col;
+            cursor.col = col + 1;
             cursor.line = linen;
             if(_text_buffer.get_selection().has_value() && _text_buffer.get_selection()->is_cursor_within(cursor)){
                 DrawRectangleRec(Rectangle {
