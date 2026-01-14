@@ -122,6 +122,23 @@ public:
         cursor.line = std::clamp(cursor.line, (long)0, (long)lines.size() - 1);
         cursor.col = std::clamp(cursor.col, (long)0, (long)current_line().size());
     }
+    void delete_selection(void){
+        if(!selection) return;
+        auto& start = selection->start;
+        auto& end = selection->end;
+        auto line_diff = end.line - start.line - 1;
+        auto& start_line = lines[start.line];
+        // erase in start line
+        start_line.contents.erase(start_line.contents.begin() + start.col, start_line.contents.end());
+        // erase in end line
+        auto& end_line = lines[end.line];
+        end_line.contents.erase(end_line.contents.begin(), end_line.contents.begin() + start.col);
+        // for (auto i = 1; i < line_diff; i++) {
+        delete_lines(start.line + 1, start.line + line_diff);
+        // }
+        // current_line().erase(current_line().begin() + cursor.col, current_line().begin() + cursor.col + moved);
+        selection = std::nullopt;
+    }
     long move_cursor_word(long amount, bool with_selection = false)
     {
         if (!amount)
@@ -294,9 +311,20 @@ public:
     }
     void delete_line(size_t line_num)
     {
-        if (lines.size() == 1)
+        if (lines.size() == 1){
+            lines[0].contents.erase();
             return;
+        }
         lines.erase(lines.begin() + line_num);
+        clamp_cursor();
+    }
+    void delete_lines(size_t start, size_t end)
+    {
+        if (lines.size() == 1){
+            lines[0].contents.erase();
+            return;
+        }
+        lines.erase(lines.begin() + start, lines.begin() + end + 1);
         clamp_cursor();
     }
     bool concat_backward(void)
@@ -492,6 +520,8 @@ void update_buffer(void)
     if (IsKeyPressedOrRepeat(KEY_BACKSPACE)) {
         if (AnySpecialDown(CONTROL))
             _text_buffer.delete_words_back();
+        else if(_text_buffer.get_selection().has_value())
+            _text_buffer.delete_selection();
         else
             _text_buffer.delete_characters_back();
     }
