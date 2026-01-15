@@ -126,17 +126,23 @@ public:
         if(!selection) return;
         auto& start = selection->start;
         auto& end = selection->end;
-        auto line_diff = end.line - start.line - 1;
-        auto& start_line = lines[start.line];
-        // erase in start line
-        start_line.contents.erase(start_line.contents.begin() + start.col, start_line.contents.end());
-        // erase in end line
-        auto& end_line = lines[end.line];
-        end_line.contents.erase(end_line.contents.begin(), end_line.contents.begin() + start.col);
-        // for (auto i = 1; i < line_diff; i++) {
-        delete_lines(start.line + 1, start.line + line_diff);
-        // }
-        // current_line().erase(current_line().begin() + cursor.col, current_line().begin() + cursor.col + moved);
+        if(start.line == end.line){
+            cursor.col = start.col;
+            auto& start_line = lines[start.line];
+            start_line.contents.erase(start_line.contents.begin() + start.col, start_line.contents.begin()+ end.col);
+        } else {
+            auto line_diff = end.line - start.line - 1;
+            auto& start_line = lines[start.line];
+            // erase in start line
+            start_line.contents.erase(start_line.contents.begin() + start.col, start_line.contents.end());
+            // erase in end line
+            auto& end_line = lines[end.line];
+            end_line.contents.erase(end_line.contents.begin(), end_line.contents.begin() + start.col);
+            // for (auto i = 1; i < line_diff; i++) {
+            delete_lines(start.line + 1, start.line + line_diff - 1);
+            // }
+            // current_line().erase(current_line().begin() + cursor.col, current_line().begin() + cursor.col + moved);
+        }
         selection = std::nullopt;
     }
     long move_cursor_word(long amount, bool with_selection = false)
