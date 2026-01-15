@@ -418,6 +418,14 @@ public:
         std::shift_right(current_line().begin() + cursor.col, current_line().end(), 1);
         current_line()[cursor.col++] = static_cast<char_t>(c);
     }
+    void insert_string(line_t&& str)
+    {
+        current_line().resize(current_line().size() + str.size());
+        current_line().insert_range(current_line().begin() + cursor.col + 1, str);
+        // current_line().push_back('!');
+        // std::shift_right(current_line().begin() + cursor.col, current_line().end(), 1);
+        // current_line()[cursor.col++] = static_cast<char_t>(c);
+    }
     void jump_cursor_to_end(bool with_selection = false)
     {
         cursor.col = current_line().size();
@@ -558,6 +566,21 @@ void update_buffer(void)
         for (auto i = 0; i < 4; i++) {
             _text_buffer.insert_character(' ');
         }
+    }
+    if (IsKeyPressedOrRepeat(KEY_V) && AnySpecialDown(CONTROL)) {
+        const char* clipboard = GetClipboardText();
+        std::printf("clipboard: %s\n", clipboard);
+        TextBuffer::line_t line {};
+        for(size_t i = 0; clipboard[i] != '\0'; i++){
+            if(clipboard[i] == '\n'){
+                _text_buffer.insert_string(std::move(line));
+                _text_buffer.insert_newline();
+                line = {};
+            } else {
+                line.push_back(clipboard[i]);
+            }
+        }
+        _text_buffer.insert_string(std::move(line));
     }
     if (IsKeyPressedOrRepeat(KEY_EQUAL) && AnySpecialDown(SHIFT) && AnySpecialDown(CONTROL)) {
         _text_buffer.increase_font_size();
