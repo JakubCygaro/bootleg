@@ -202,7 +202,7 @@ public:
             // copy in end line
             auto& end_line = lines[end.line].contents;
             if (!end_line.empty()) {
-                out.append(end_line.begin(), end_line.begin() + end.col);
+                out.append(end_line.begin(), end_line.begin() + end.col + 1);
             }
         }
         return out;
@@ -316,7 +316,6 @@ public:
     }
     void update_selection(void)
     {
-
         // if(cursor < selection->start){
         //     // selection->end = selection->start;
         //     // selection->start = { cursor.line, cursor.col - 1 };
