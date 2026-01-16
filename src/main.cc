@@ -55,8 +55,12 @@ struct TextBuffer {
     struct Selection {
         Cursor start {};
         Cursor end {};
-        bool is_cursor_within(const Cursor& c) const noexcept{
-            return (c > this->start && c <= this->end);
+        bool is_cursor_within(const Cursor& c) const noexcept
+        {
+            if (this->start <= this->end)
+                return (c > this->start && c <= this->end);
+            else
+                return (c > this->end && c <= this->start);
         }
     };
 
@@ -92,7 +96,8 @@ public:
     {
         return lines[cursor.line].contents;
     }
-    const std::optional<Selection>& get_selection(void){
+    const std::optional<Selection>& get_selection(void)
+    {
         return selection;
     }
     // if | is the cursor then x is the character
@@ -122,19 +127,23 @@ public:
         cursor.line = std::clamp(cursor.line, (long)0, (long)lines.size() - 1);
         cursor.col = std::clamp(cursor.col, (long)0, (long)current_line().size());
     }
-    void delete_selection(void){
-        if(!selection) return;
+    void delete_selection(void)
+    {
+        if (!selection)
+            return;
         auto& start = selection->start;
         auto& end = selection->end;
-        if(start.line == end.line){
+        if (start > end)
+            std::swap(start, end);
+        if (start.line == end.line) {
             cursor.col = start.col;
             auto& start_line = lines[start.line];
-            start_line.contents.erase(start_line.contents.begin() + start.col, start_line.contents.begin()+ end.col);
+            start_line.contents.erase(start_line.contents.begin() + start.col, start_line.contents.begin() + end.col);
         } else {
             cursor = start;
             auto& start_line = lines[start.line].contents;
             // erase in start line
-            if(start_line.empty()){
+            if (start_line.empty()) {
                 move_cursor_up();
                 jump_cursor_to_end();
                 delete_line(start.line);
@@ -145,7 +154,7 @@ public:
             }
             // erase in end line
             auto& end_line = lines[end.line].contents;
-            if(end_line.empty()){
+            if (end_line.empty()) {
                 delete_line(end.line);
             } else {
                 end_line.erase(end_line.begin(), end_line.begin() + end.col);
@@ -155,6 +164,48 @@ public:
             concat_forward();
         }
         selection = std::nullopt;
+    }
+    line_t copy_selection(void)
+    {
+        if (!selection)
+            return u8"";
+        line_t out = {};
+        auto& start = selection->start;
+        auto& end = selection->end;
+        if (start > end)
+            std::swap(start, end);
+        if (start.line == end.line) {
+            cursor.col = start.col;
+            auto& start_line = lines[start.line];
+            out.insert(out.begin(), start_line.contents.begin() + start.col, start_line.contents.begin() + end.col);
+        } else {
+            cursor = start;
+            auto& start_line = lines[start.line].contents;
+            // copy in start line
+            if (start_line.empty()) {
+                out.push_back('\n');
+            } else {
+                out.append(start_line.begin() + start.col, start_line.end());
+                out.push_back('\n');
+            }
+            // copy in between
+            auto line_diff = end.line - start.line - 1;
+            for (size_t i = start.line + 1; i <= (size_t)start.line + line_diff; i++) {
+                auto& current_line = lines[i].contents;
+                if (current_line.empty()) {
+                    out.push_back('\n');
+                } else {
+                    out.append(current_line);
+                    out.push_back('\n');
+                }
+            }
+            // copy in end line
+            auto& end_line = lines[end.line].contents;
+            if (!end_line.empty()) {
+                out.append(end_line.begin(), end_line.begin() + end.col);
+            }
+        }
+        return out;
     }
     long move_cursor_word(long amount, bool with_selection = false)
     {
@@ -209,7 +260,7 @@ public:
     // returns how many positions the cursor moved (across lines, and counted in bytes)
     long move_cursor_h(long amount, bool with_selection = false)
     {
-        if(with_selection && !selection)
+        if (with_selection && !selection)
             start_selection();
         const auto amount_abs = std::abs(amount);
         const auto inc = (amount / std::abs(amount));
@@ -259,25 +310,29 @@ public:
             }
             // clamp_cursor();
         }
-        if(with_selection) update_selection();
+        if (with_selection)
+            update_selection();
         return moved;
     }
-    void update_selection(void){
+    void update_selection(void)
+    {
 
-        if(cursor < selection->start){
-            // selection->end = selection->start;
-            // selection->start = { cursor.line, cursor.col - 1 };
-            selection->start = cursor;
-        }
-        else {
-            selection->end = { cursor.line, cursor.col};
-        }
+        // if(cursor < selection->start){
+        //     // selection->end = selection->start;
+        //     // selection->start = { cursor.line, cursor.col - 1 };
+        //     selection->start = cursor;
+        // }
+        // else {
+        // }
+        selection->end = { cursor.line, cursor.col };
     }
-    long count_chars_to_cursor_in_line(void){
+    long count_chars_to_cursor_in_line(void)
+    {
         const auto& line = current_line();
         long chars = 0;
-        for(long i = 0; i < (long)line.size();){
-            if(i == cursor.col) break;
+        for (long i = 0; i < (long)line.size();) {
+            if (i == cursor.col)
+                break;
             i += utf8::get_utf8_bytes_len(line[i]);
             chars++;
         }
@@ -285,7 +340,7 @@ public:
     }
     long move_cursor_v(long amount, bool with_selection = false)
     {
-        if(with_selection && !selection)
+        if (with_selection && !selection)
             start_selection();
         if (cursor.line + amount < 0) {
             amount = -cursor.line;
@@ -295,27 +350,14 @@ public:
         auto chars = count_chars_to_cursor_in_line();
         cursor.line += amount;
         jump_cursor_to_start();
-        if(chars == 0)
+        if (chars == 0)
             jump_cursor_to_start();
-        else if((long)current_line().size() < chars )
+        else if ((long)current_line().size() < chars)
             jump_cursor_to_end();
         else
             move_cursor_right(chars);
-        // auto current = get_char_under_cursor();
-        // if (current) {
-        //     auto crlen = utf8::get_utf8_bytes_len(current.value());
-        //     if (crlen > 1) {
-        //         cursor.col += crlen - 1;
-        //     } else if (crlen == -1) {
-        //         auto next = get_char_after_cursor();
-        //         while (next.has_value() && utf8::get_utf8_bytes_len(next.value()) == -1) {
-        //             next = get_char_after_cursor();
-        //             cursor.col++;
-        //         }
-        //     }
-        // }
-        // cursor.col = std::clamp(cursor.col, (long)0, (long)current_line().size());
-        if(with_selection) update_selection();
+        if (with_selection)
+            update_selection();
         return amount;
     }
     void move_cursor_down(long amount = 1, bool with_selection = false)
@@ -328,7 +370,7 @@ public:
     }
     void delete_line(size_t line_num)
     {
-        if (lines.size() == 1){
+        if (lines.size() == 1) {
             lines[0].contents.erase();
             return;
         }
@@ -337,7 +379,7 @@ public:
     }
     void delete_lines(size_t start, size_t end)
     {
-        if (lines.size() == 1){
+        if (lines.size() == 1) {
             lines[0].contents.erase();
             return;
         }
@@ -420,21 +462,21 @@ public:
     }
     void insert_string(line_t&& str)
     {
-        current_line().resize(current_line().size() + str.size());
-        current_line().insert_range(current_line().begin() + cursor.col + 1, str);
-        // current_line().push_back('!');
-        // std::shift_right(current_line().begin() + cursor.col, current_line().end(), 1);
-        // current_line()[cursor.col++] = static_cast<char_t>(c);
+        auto const len = str.size();
+        current_line().insert(cursor.col, str);
+        cursor.col += len;
     }
     void jump_cursor_to_end(bool with_selection = false)
     {
         cursor.col = current_line().size();
-        if(with_selection) update_selection();
+        if (with_selection)
+            update_selection();
     }
     void jump_cursor_to_start(bool with_selection = false)
     {
         cursor.col = 0;
-        if(with_selection) update_selection();
+        if (with_selection)
+            update_selection();
     }
     void insert_newline(void)
     {
@@ -489,7 +531,16 @@ TextBuffer::Cursor detect_point_over_buffer(const Vector2 point)
 void update_buffer_mouse(void)
 {
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        _text_buffer.clear_selection();
         _text_buffer.cursor = detect_point_over_buffer(GetMousePosition());
+    }
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        if (!_text_buffer.get_selection()) {
+            _text_buffer.start_selection();
+        } else {
+            _text_buffer.cursor = detect_point_over_buffer(GetMousePosition());
+            _text_buffer.update_selection();
+        }
     }
 }
 
@@ -508,6 +559,9 @@ void update_buffer(void)
     if (IsKeyPressedOrRepeat(KEY_H) && AnySpecialDown(CONTROL)) {
         _text_buffer.move_cursor_left(1, shift_down);
     }
+    if (IsKeyPressedOrRepeat(KEY_A) && AnySpecialDown(CONTROL)) {
+        _text_buffer.jump_cursor_to_start(shift_down);
+    }
     if (IsKeyPressedOrRepeat(KEY_B) && AnySpecialDown(CONTROL)) {
         _text_buffer.move_cursor_word(-1, shift_down);
     }
@@ -520,6 +574,9 @@ void update_buffer(void)
     }
     if (IsKeyPressedOrRepeat(KEY_L) && AnySpecialDown(CONTROL)) {
         _text_buffer.move_cursor_right(1, shift_down);
+    }
+    if (IsKeyPressedOrRepeat(KEY_E) && AnySpecialDown(CONTROL)) {
+        _text_buffer.jump_cursor_to_end(shift_down);
     }
     if (IsKeyPressedOrRepeat(KEY_W) && AnySpecialDown(CONTROL)) {
         _text_buffer.move_cursor_word(1, shift_down);
@@ -545,7 +602,7 @@ void update_buffer(void)
     if (IsKeyPressedOrRepeat(KEY_BACKSPACE)) {
         if (AnySpecialDown(CONTROL))
             _text_buffer.delete_words_back();
-        else if(_text_buffer.get_selection().has_value())
+        else if (_text_buffer.get_selection().has_value())
             _text_buffer.delete_selection();
         else
             _text_buffer.delete_characters_back();
@@ -571,16 +628,24 @@ void update_buffer(void)
         const char* clipboard = GetClipboardText();
         std::printf("clipboard: %s\n", clipboard);
         TextBuffer::line_t line {};
-        for(size_t i = 0; clipboard[i] != '\0'; i++){
-            if(clipboard[i] == '\n'){
+        for (size_t i = 0; clipboard[i] != '\0'; i++) {
+            if (clipboard[i] == '\n') {
                 _text_buffer.insert_string(std::move(line));
                 _text_buffer.insert_newline();
                 line = {};
+            } else if (clipboard[i] == '\r') {
+                continue;
+            } else if (clipboard[i] == '\t') {
+                line.append(u8"    ");
             } else {
                 line.push_back(clipboard[i]);
             }
         }
         _text_buffer.insert_string(std::move(line));
+    }
+    if (IsKeyPressedOrRepeat(KEY_C) && AnySpecialDown(CONTROL)) {
+        auto sel = _text_buffer.copy_selection();
+        SetClipboardText(reinterpret_cast<const char*>(sel.data()));
     }
     if (IsKeyPressedOrRepeat(KEY_EQUAL) && AnySpecialDown(SHIFT) && AnySpecialDown(CONTROL)) {
         _text_buffer.increase_font_size();
@@ -597,7 +662,7 @@ void update_buffer(void)
             _text_buffer.insert_character(utfbuf[i]);
         }
     }
-    if(start_pos != _text_buffer.cursor && !shift_down)
+    if (start_pos != _text_buffer.cursor && !shift_down)
         _text_buffer.clear_selection();
 }
 
@@ -630,13 +695,13 @@ void draw_buffer(void)
             }
             cursor.col = col + 1;
             cursor.line = linen;
-            if(_text_buffer.get_selection().has_value() && _text_buffer.get_selection()->is_cursor_within(cursor)){
+            if (_text_buffer.get_selection().has_value() && _text_buffer.get_selection()->is_cursor_within(cursor)) {
                 DrawRectangleRec(Rectangle {
-                        .x = pos.x,
-                        .y = pos.y,
-                        .width = glyph_width + GLYPH_SPACING,
-                        .height = line_advance },
-                        _text_buffer.foreground_color);
+                                     .x = pos.x,
+                                     .y = pos.y,
+                                     .width = glyph_width + GLYPH_SPACING,
+                                     .height = line_advance },
+                    _text_buffer.foreground_color);
                 DrawTextCodepoint(font, c, pos, _text_buffer.font_size, _text_buffer.background_color);
             } else {
                 DrawTextCodepoint(font, c, pos, _text_buffer.font_size, _text_buffer.foreground_color);
