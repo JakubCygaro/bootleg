@@ -202,7 +202,7 @@ public:
             // copy in end line
             auto& end_line = lines[end.line].contents;
             if (!end_line.empty()) {
-                out.append(end_line.begin(), end_line.begin() + end.col + 1);
+                out.append(end_line.begin(), end_line.begin() + end.col);
             }
         }
         return out;
@@ -540,6 +540,13 @@ void update_buffer_mouse(void)
             _text_buffer.cursor = detect_point_over_buffer(GetMousePosition());
             _text_buffer.update_selection();
         }
+    }
+    if (AnySpecialDown(CONTROL)) {
+        const float mouse_move = GetMouseWheelMove();
+        if(mouse_move > 0)
+            _text_buffer.increase_font_size();
+        else if (mouse_move < 0)
+            _text_buffer.decrease_font_size();
     }
 }
 
