@@ -52,6 +52,7 @@ struct TextBuffer {
     std::vector<Line> lines = { {} };
     Cursor cursor = {};
     Font font {};
+    Rectangle bounds = {};
     struct Selection {
         Cursor start {};
         Cursor end {};
@@ -499,239 +500,253 @@ public:
     {
         selection = std::nullopt;
     }
-};
-
-static TextBuffer _text_buffer = {};
-
-TextBuffer::Cursor detect_point_over_buffer(const Vector2 point)
-{
-    const Font font = _text_buffer.font;
-    const float scale_factor = _text_buffer.font_size / (float)font.baseSize;
-    const float line_advance = font.recs[GetGlyphIndex(font, ' ')].height * scale_factor;
-    long linen = point.y == 0 ? 0 : (long)(point.y / line_advance) % _text_buffer.get_line_count();
-    auto& line = _text_buffer.lines[linen];
-    if (line.contents.size() == 0)
-        return TextBuffer::Cursor { .line = linen, .col = 0 };
-    float advance = 0;
-    for (long col = 0; col < (long)line.contents.size();) {
-        int csz = 1;
-        int c = GetCodepoint((char*)&line.contents.data()[col], &csz);
-        int idx = GetGlyphIndex(font, c);
-        float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
-        // auto r = GetGlyphAtlasRec(font, idx);
-        if (point.x >= advance && point.x <= advance + glyph_width + GLYPH_SPACING)
-            return TextBuffer::Cursor { .line = linen, .col = col };
-        advance += glyph_width + GLYPH_SPACING;
-        col += csz;
-    }
-    return TextBuffer::Cursor { .line = linen, .col = (long)line.contents.size() };
-}
-
-void update_buffer_mouse(void)
-{
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        _text_buffer.clear_selection();
-        _text_buffer.cursor = detect_point_over_buffer(GetMousePosition());
-    }
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-        if (!_text_buffer.get_selection()) {
-            _text_buffer.start_selection();
-        } else {
-            _text_buffer.cursor = detect_point_over_buffer(GetMousePosition());
-            _text_buffer.update_selection();
-        }
-    }
-    if (AnySpecialDown(CONTROL)) {
-        const float mouse_move = GetMouseWheelMove();
-        if(mouse_move > 0)
-            _text_buffer.increase_font_size();
-        else if (mouse_move < 0)
-            _text_buffer.decrease_font_size();
-    }
-}
-
-void update_buffer(void)
-{
-    update_buffer_mouse();
-    const bool shift_down = AnySpecialDown(SHIFT);
-    const auto start_pos = _text_buffer.cursor;
-    if (IsKeyPressedOrRepeat(KEY_LEFT)) {
-        if (AnySpecialDown(CONTROL)) {
-            _text_buffer.move_cursor_word(-1, shift_down);
-        } else {
-            _text_buffer.move_cursor_left(1, shift_down);
-        }
-    }
-    if (IsKeyPressedOrRepeat(KEY_H) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_left(1, shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_A) && AnySpecialDown(CONTROL)) {
-        _text_buffer.jump_cursor_to_start(shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_B) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_word(-1, shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_RIGHT)) {
-        if (AnySpecialDown(CONTROL)) {
-            _text_buffer.move_cursor_word(1, shift_down);
-        } else {
-            _text_buffer.move_cursor_right(1, shift_down);
-        }
-    }
-    if (IsKeyPressedOrRepeat(KEY_L) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_right(1, shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_E) && AnySpecialDown(CONTROL)) {
-        _text_buffer.jump_cursor_to_end(shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_W) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_word(1, shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_UP)) {
-        _text_buffer.move_cursor_up(1, shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_K) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_up(1, shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_DOWN)) {
-        _text_buffer.move_cursor_down(1, shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_J) && AnySpecialDown(CONTROL)) {
-        _text_buffer.move_cursor_down(1, shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_END)) {
-        _text_buffer.jump_cursor_to_end(shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_HOME)) {
-        _text_buffer.jump_cursor_to_start(shift_down);
-    }
-    if (IsKeyPressedOrRepeat(KEY_BACKSPACE)) {
-        if (AnySpecialDown(CONTROL))
-            _text_buffer.delete_words_back();
-        else if (_text_buffer.get_selection().has_value())
-            _text_buffer.delete_selection();
-        else
-            _text_buffer.delete_characters_back();
-    }
-    if (IsKeyPressedOrRepeat(KEY_DELETE)) {
-        if (AnySpecialDown(CONTROL))
-            _text_buffer.delete_words_forward();
-        else
-            _text_buffer.delete_characters_forward();
-    }
-    if (IsKeyPressedOrRepeat(KEY_ENTER)) {
-        _text_buffer.insert_newline();
-    }
-    if (IsKeyPressedOrRepeat(KEY_O) && AnySpecialDown(CONTROL)) {
-        _text_buffer.insert_newline();
-    }
-    if (IsKeyPressedOrRepeat(KEY_TAB)) {
-        for (auto i = 0; i < 4; i++) {
-            _text_buffer.insert_character(' ');
-        }
-    }
-    if (IsKeyPressedOrRepeat(KEY_V) && AnySpecialDown(CONTROL)) {
-        const char* clipboard = GetClipboardText();
-        std::printf("clipboard: %s\n", clipboard);
-        TextBuffer::line_t line {};
-        for (size_t i = 0; clipboard[i] != '\0'; i++) {
-            if (clipboard[i] == '\n') {
-                _text_buffer.insert_string(std::move(line));
-                _text_buffer.insert_newline();
-                line = {};
-            } else if (clipboard[i] == '\r') {
-                continue;
-            } else if (clipboard[i] == '\t') {
-                line.append(u8"    ");
-            } else {
-                line.push_back(clipboard[i]);
+    void draw_buffer(void)
+    {
+        // for selection checking
+        TextBuffer::Cursor _cursor = {};
+        Vector2 pos = { bounds.x, bounds.y };
+        bool column_overflow = false;
+        bool line_overflow = false;
+        const float scale_factor = font_size / (float)font.baseSize;
+        const float line_advance = font.recs[GetGlyphIndex(font, ' ')].height * scale_factor;
+        Rectangle last_c_r = {};
+        for (std::size_t linen = 0; linen < get_line_count(); linen++) {
+            auto& current_line = lines[linen];
+            if (pos.y + line_advance > bounds.height){
+                line_overflow = true;
+                break;
             }
-        }
-        _text_buffer.insert_string(std::move(line));
-    }
-    if (IsKeyPressedOrRepeat(KEY_C) && AnySpecialDown(CONTROL)) {
-        auto sel = _text_buffer.copy_selection();
-        SetClipboardText(reinterpret_cast<const char*>(sel.data()));
-    }
-    if (IsKeyPressedOrRepeat(KEY_EQUAL) && AnySpecialDown(SHIFT) && AnySpecialDown(CONTROL)) {
-        _text_buffer.increase_font_size();
-    }
-    if (IsKeyPressedOrRepeat(KEY_MINUS) && AnySpecialDown(CONTROL)) {
-        _text_buffer.decrease_font_size();
-    }
-    // _text_buffer.clamp_cursor();
-    static unsigned char utfbuf[4] = { 0 };
-    int c = 0;
-    while ((c = GetCharPressed())) {
-        if(_text_buffer.get_selection().has_value()){
-            _text_buffer.delete_selection();
-            _text_buffer.clear_selection();
-        }
-        auto len = utf8::encode_utf8(c, utfbuf);
-        for (size_t i = 0; i < len; i++) {
-            _text_buffer.insert_character(utfbuf[i]);
-        }
-    }
-    if (start_pos != _text_buffer.cursor && !shift_down)
-        _text_buffer.clear_selection();
-}
+            for (size_t col = 0; col < current_line.contents.size();) {
+                int csz = 1;
+                int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
+                int idx = GetGlyphIndex(font, c);
+                const float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
+                if (pos.x + glyph_width > bounds.width){
 
-void draw_buffer(void)
-{
-    // for selection checking
-    TextBuffer::Cursor cursor = {};
-    const Font font = _text_buffer.font;
-    Vector2 pos = { 0, 0 };
-    const float scale_factor = _text_buffer.font_size / (float)font.baseSize;
-    const float line_advance = font.recs[GetGlyphIndex(font, ' ')].height * scale_factor;
-    Rectangle last_c_r = {};
-    for (std::size_t linen = 0; linen < _text_buffer.get_line_count(); linen++) {
-        auto& current_line = _text_buffer.lines[linen];
-        for (size_t col = 0; col < current_line.contents.size();) {
-            int csz = 1;
-            int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
-            int idx = GetGlyphIndex(font, c);
-            const float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
-            // float glyph_height = font.recs[idx].height * scale_factor;
+                    break;
+                }
+                // float glyph_height = font.recs[idx].height * scale_factor;
 
-            auto r = GetGlyphAtlasRec(font, idx);
-            if ((long)linen == _text_buffer.cursor.line && (long)col == _text_buffer.cursor.col) {
+                auto r = GetGlyphAtlasRec(font, idx);
+                if ((long)linen == cursor.line && (long)col == cursor.col) {
+                    DrawRectangleRec(Rectangle {
+                                         .x = pos.x,
+                                         .y = pos.y,
+                                         .width = GLYPH_SPACING,
+                                         .height = line_advance },
+                        WHITE);
+                }
+                _cursor.col = col + 1;
+                _cursor.line = linen;
+                if (get_selection().has_value() && get_selection()->is_cursor_within(_cursor)) {
+                    DrawRectangleRec(Rectangle {
+                                         .x = pos.x,
+                                         .y = pos.y,
+                                         .width = glyph_width + GLYPH_SPACING,
+                                         .height = line_advance },
+                        foreground_color);
+                    DrawTextCodepoint(font, c, pos, font_size, background_color);
+                } else {
+                    DrawTextCodepoint(font, c, pos, font_size, foreground_color);
+                }
+                pos.x += glyph_width + GLYPH_SPACING;
+                col += csz;
+                last_c_r = r;
+            }
+            if (cursor.line == (long)linen && cursor.col == (long)current_line.contents.size()) {
                 DrawRectangleRec(Rectangle {
                                      .x = pos.x,
                                      .y = pos.y,
                                      .width = GLYPH_SPACING,
                                      .height = line_advance },
-                    WHITE);
+                    foreground_color);
             }
-            cursor.col = col + 1;
-            cursor.line = linen;
-            if (_text_buffer.get_selection().has_value() && _text_buffer.get_selection()->is_cursor_within(cursor)) {
-                DrawRectangleRec(Rectangle {
-                                     .x = pos.x,
-                                     .y = pos.y,
-                                     .width = glyph_width + GLYPH_SPACING,
-                                     .height = line_advance },
-                    _text_buffer.foreground_color);
-                DrawTextCodepoint(font, c, pos, _text_buffer.font_size, _text_buffer.background_color);
-            } else {
-                DrawTextCodepoint(font, c, pos, _text_buffer.font_size, _text_buffer.foreground_color);
-            }
-            pos.x += glyph_width + GLYPH_SPACING;
-            col += csz;
-            last_c_r = r;
+            pos.x = 0;
+            pos.y += line_advance;
         }
-        if (_text_buffer.cursor.line == (long)linen && _text_buffer.cursor.col == (long)current_line.contents.size()) {
-            DrawRectangleRec(Rectangle {
-                                 .x = pos.x,
-                                 .y = pos.y,
-                                 .width = GLYPH_SPACING,
-                                 .height = line_advance },
-                _text_buffer.foreground_color);
-        }
-        pos.x = 0;
-        pos.y += line_advance;
     }
-}
+    std::optional<TextBuffer::Cursor> detect_point_over_buffer(const Vector2 p)
+    {
+        const auto point = (Vector2){
+            .x = p.x - bounds.x,
+            .y = p.y - bounds.y,
+        };
+        if(point.x < 0 || point.x > bounds.width || point.y < 0 || point.y > bounds.height) return std::nullopt;
+        const float scale_factor = font_size / (float)font.baseSize;
+        const float line_advance = font.recs[GetGlyphIndex(font, ' ')].height * scale_factor;
+        long linen = point.y == 0 ? 0 : (long)(point.y / line_advance) % get_line_count();
+        auto& line = lines[linen];
+        if (line.contents.size() == 0)
+            return TextBuffer::Cursor { .line = linen, .col = 0 };
+        float advance = 0;
+        for (long col = 0; col < (long)line.contents.size();) {
+            int csz = 1;
+            int c = GetCodepoint((char*)&line.contents.data()[col], &csz);
+            int idx = GetGlyphIndex(font, c);
+            float glyph_width = (font.glyphs[idx].advanceX == 0) ? font.recs[idx].width * scale_factor : font.glyphs[idx].advanceX * scale_factor;
+            // auto r = GetGlyphAtlasRec(font, idx);
+            if (point.x >= advance && point.x <= advance + glyph_width + GLYPH_SPACING)
+                return TextBuffer::Cursor { .line = linen, .col = col };
+            advance += glyph_width + GLYPH_SPACING;
+            col += csz;
+        }
+        return TextBuffer::Cursor { .line = linen, .col = (long)line.contents.size() };
+    }
+
+    void update_buffer_mouse(void)
+    {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            clear_selection();
+            auto c = detect_point_over_buffer(GetMousePosition());
+            cursor = c.has_value() ? *c : cursor;
+        }
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            if (!get_selection()) {
+                start_selection();
+            } else {
+            auto c = detect_point_over_buffer(GetMousePosition());
+            cursor = c.has_value() ? *c : cursor;
+                update_selection();
+            }
+        }
+        if (AnySpecialDown(CONTROL)) {
+            const float mouse_move = GetMouseWheelMove();
+            if (mouse_move > 0)
+                increase_font_size();
+            else if (mouse_move < 0)
+                decrease_font_size();
+        }
+    }
+
+    void update_buffer(void)
+    {
+        update_buffer_mouse();
+        const bool shift_down = AnySpecialDown(SHIFT);
+        const auto start_pos = cursor;
+        if (IsKeyPressedOrRepeat(KEY_LEFT)) {
+            if (AnySpecialDown(CONTROL)) {
+                move_cursor_word(-1, shift_down);
+            } else {
+                move_cursor_left(1, shift_down);
+            }
+        }
+        if (IsKeyPressedOrRepeat(KEY_H) && AnySpecialDown(CONTROL)) {
+            move_cursor_left(1, shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_A) && AnySpecialDown(CONTROL)) {
+            jump_cursor_to_start(shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_B) && AnySpecialDown(CONTROL)) {
+            move_cursor_word(-1, shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_RIGHT)) {
+            if (AnySpecialDown(CONTROL)) {
+                move_cursor_word(1, shift_down);
+            } else {
+                move_cursor_right(1, shift_down);
+            }
+        }
+        if (IsKeyPressedOrRepeat(KEY_L) && AnySpecialDown(CONTROL)) {
+            move_cursor_right(1, shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_E) && AnySpecialDown(CONTROL)) {
+            jump_cursor_to_end(shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_W) && AnySpecialDown(CONTROL)) {
+            move_cursor_word(1, shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_UP)) {
+            move_cursor_up(1, shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_K) && AnySpecialDown(CONTROL)) {
+            move_cursor_up(1, shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_DOWN)) {
+            move_cursor_down(1, shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_J) && AnySpecialDown(CONTROL)) {
+            move_cursor_down(1, shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_END)) {
+            jump_cursor_to_end(shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_HOME)) {
+            jump_cursor_to_start(shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_BACKSPACE)) {
+            if (AnySpecialDown(CONTROL))
+                delete_words_back();
+            else if (get_selection().has_value())
+                delete_selection();
+            else
+                delete_characters_back();
+        }
+        if (IsKeyPressedOrRepeat(KEY_DELETE)) {
+            if (AnySpecialDown(CONTROL))
+                delete_words_forward();
+            else
+                delete_characters_forward();
+        }
+        if (IsKeyPressedOrRepeat(KEY_ENTER)) {
+            insert_newline();
+        }
+        if (IsKeyPressedOrRepeat(KEY_O) && AnySpecialDown(CONTROL)) {
+            insert_newline();
+        }
+        if (IsKeyPressedOrRepeat(KEY_TAB)) {
+            for (auto i = 0; i < 4; i++) {
+                insert_character(' ');
+            }
+        }
+        if (IsKeyPressedOrRepeat(KEY_V) && AnySpecialDown(CONTROL)) {
+            const char* clipboard = GetClipboardText();
+            std::printf("clipboard: %s\n", clipboard);
+            TextBuffer::line_t line {};
+            for (size_t i = 0; clipboard[i] != '\0'; i++) {
+                if (clipboard[i] == '\n') {
+                    insert_string(std::move(line));
+                    insert_newline();
+                    line = {};
+                } else if (clipboard[i] == '\r') {
+                    continue;
+                } else if (clipboard[i] == '\t') {
+                    line.append(u8"    ");
+                } else {
+                    line.push_back(clipboard[i]);
+                }
+            }
+            insert_string(std::move(line));
+        }
+        if (IsKeyPressedOrRepeat(KEY_C) && AnySpecialDown(CONTROL)) {
+            auto sel = copy_selection();
+            SetClipboardText(reinterpret_cast<const char*>(sel.data()));
+        }
+        if (IsKeyPressedOrRepeat(KEY_EQUAL) && AnySpecialDown(SHIFT) && AnySpecialDown(CONTROL)) {
+            increase_font_size();
+        }
+        if (IsKeyPressedOrRepeat(KEY_MINUS) && AnySpecialDown(CONTROL)) {
+            decrease_font_size();
+        }
+        // clamp_cursor();
+        static unsigned char utfbuf[4] = { 0 };
+        int c = 0;
+        while ((c = GetCharPressed())) {
+            if (get_selection().has_value()) {
+                delete_selection();
+                clear_selection();
+            }
+            auto len = utf8::encode_utf8(c, utfbuf);
+            for (size_t i = 0; i < len; i++) {
+                insert_character(utfbuf[i]);
+            }
+        }
+        if (start_pos != cursor && !shift_down)
+            clear_selection();
+    }
+};
+
+static TextBuffer _text_buffer = {};
+
 // lifted from raylib examples
 static void add_codepoints_range(Font* font, const char* fontPath, int start, int stop)
 {
@@ -765,6 +780,12 @@ int main(int argc, char** args)
     _text_buffer.lines = { {
         u8"Welcome to Bootleg! ąąą ęęę śðæśðæ",
     } };
+    _text_buffer.bounds = {
+        .x = 0,
+        .y = 0,
+        .width = 800,
+        .height = 600,
+    };
     InitWindow(800, 600, "bootleg");
     DEFER(CloseWindow());
     _text_buffer.font = argc == 2 ? (try_load_font(args[1])) : GetFontDefault();
@@ -773,10 +794,10 @@ int main(int argc, char** args)
             UnloadFont(_text_buffer.font););
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
-        update_buffer();
+        _text_buffer.update_buffer();
         BeginDrawing();
         ClearBackground(BLACK);
-        draw_buffer();
+        _text_buffer.draw_buffer();
         EndDrawing();
     }
 }
