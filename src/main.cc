@@ -656,6 +656,10 @@ void update_buffer(void)
     static unsigned char utfbuf[4] = { 0 };
     int c = 0;
     while ((c = GetCharPressed())) {
+        if(_text_buffer.get_selection().has_value()){
+            _text_buffer.delete_selection();
+            _text_buffer.clear_selection();
+        }
         auto len = utf8::encode_utf8(c, utfbuf);
         for (size_t i = 0; i < len; i++) {
             _text_buffer.insert_character(utfbuf[i]);
