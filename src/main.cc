@@ -4,15 +4,17 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <format>
 #include <optional>
 #include <print>
 #include <raylib.h>
+#include <string>
 
 #define IsKeyPressedOrRepeat(KEY) (IsKeyPressed(KEY) || IsKeyPressedRepeat(KEY))
 #define AnySpecialDown(SPECIAL_KEY) (IsKeyDown(KEY_LEFT_##SPECIAL_KEY) || IsKeyDown(KEY_RIGHT_##SPECIAL_KEY))
 
 struct TextBuffer {
-    using char_t = char8_t;
+    using char_t = char;
     using line_t = std::basic_string<char_t>;
     struct Line {
         line_t contents {};
@@ -204,7 +206,7 @@ public:
     line_t copy_selection(void)
     {
         if (!m_selection)
-            return u8"";
+            return "";
         line_t out = {};
         auto& start = m_selection->start;
         auto& end = m_selection->end;
@@ -502,6 +504,19 @@ public:
         m_cursor.col += len;
         update_total_height();
     }
+    void jump_cursor_to_top(bool with_selection = false)
+    {
+        m_cursor = {};
+        if (with_selection)
+            update_selection();
+        update_viewport_to_cursor();
+    }
+    void jump_cursor_to_bottom(bool with_selection = false)
+    {
+        m_cursor = { .line = (long)m_lines.size() - 1, .col = 0 };
+        jump_cursor_to_end(with_selection);
+        update_viewport_to_cursor();
+    }
     void jump_cursor_to_end(bool with_selection = false)
     {
         m_cursor.col = current_line().size();
@@ -530,15 +545,16 @@ public:
         update_total_height();
         update_viewport_to_cursor();
     }
-    void update_viewport_to_cursor(void){
+    void update_viewport_to_cursor(void)
+    {
         const auto current_line_pos = f_line_advance * m_cursor.line;
         if (current_line_pos >= m_bounds.height + m_scroll_v) {
             // update_scroll_v((f_line_advance * (m_cursor.line + 1) - m_scroll_v) - m_bounds.height);
             update_scroll_v(current_line_pos - m_bounds.height + m_scroll_v + f_line_advance);
         }
-        if (current_line_pos <= m_scroll_v) {
+        if (current_line_pos < m_scroll_v) {
             // m_scroll_v -= (f_line_advance * (m_cursor.line + 1) - m_scroll_v) - m_bounds.height;
-            update_scroll_v(current_line_pos - (m_bounds.height + m_scroll_v));
+            update_scroll_v(current_line_pos - (m_bounds.height + m_scroll_v - f_line_advance));
             // m_scroll_v -= f_line_advance;
         }
     }
@@ -613,7 +629,7 @@ public:
             const auto w = (m_bounds.width * 0.02f);
             const auto rec = Rectangle {
                 .x = m_bounds.width + m_bounds.x - w,
-                .y = m_bounds.y + ((f_total_height - m_bounds.height - m_scroll_v) / f_total_height) * m_bounds.height,
+                .y = m_bounds.y + m_bounds.height - (drawn * m_bounds.height) - ((f_total_height - m_bounds.height - m_scroll_v) / f_total_height) * m_bounds.height,
                 .width = w,
                 .height = drawn * m_bounds.height,
             };
@@ -738,7 +754,7 @@ public:
                 } else if (clipboard[i] == '\r') {
                     continue;
                 } else if (clipboard[i] == '\t') {
-                    line.append(u8"    ");
+                    line.append("    ");
                 } else {
                     line.push_back(clipboard[i]);
                 }
@@ -755,7 +771,12 @@ public:
         if (IsKeyPressedOrRepeat(KEY_MINUS) && AnySpecialDown(CONTROL)) {
             decrease_font_size();
         }
-        // clamp_cursor();
+        if (IsKeyPressedOrRepeat(KEY_G) && AnySpecialDown(CONTROL)) {
+            jump_cursor_to_bottom(shift_down);
+        }
+        if (IsKeyPressedOrRepeat(KEY_T) && AnySpecialDown(CONTROL)) {
+            jump_cursor_to_top(shift_down);
+        }
         static unsigned char utfbuf[4] = { 0 };
         int c = 0;
         while ((c = GetCharPressed())) {
@@ -871,8 +892,12 @@ int main(int argc, char** args)
         if (font.texture.id != GetFontDefault().texture.id)
             UnloadFont(font););
     TextBuffer _text_buffer = { font, bounds };
-    _text_buffer.insert_string(u8"Welcome to Bootleg!");
+    _text_buffer.insert_string("Welcome to Bootleg!");
     _text_buffer.set_font_size(50);
+    for(auto i = 0; i < 50; i++){
+        _text_buffer.insert_newline();
+        _text_buffer.insert_string(std::format("{}", i));
+    }
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
         _text_buffer.update_buffer();
