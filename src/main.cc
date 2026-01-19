@@ -70,6 +70,7 @@ private:
     int m_spacing = 10;
     int m_glyph_spacing = 2;
     float m_scroll_v = 0.0;
+    float m_v_scroll_bar_width {};
 
     float f_scale_factor;
     float f_line_advance;
@@ -84,6 +85,7 @@ public:
         , m_bounds { bounds }
     {
         update_font_measurements();
+        m_v_scroll_bar_width = (m_bounds.width * 0.02f);
     }
 
     const Font& get_font() const
@@ -416,6 +418,7 @@ public:
         m_lines.erase(m_lines.begin() + start, m_lines.begin() + end + 1);
         clamp_cursor();
         update_total_height();
+        update_viewport_to_cursor();
     }
     bool concat_backward(void)
     {
@@ -476,6 +479,8 @@ public:
         }
         current_line().erase(current_line().begin() + m_cursor.col, current_line().begin() + m_cursor.col + moved);
         update_total_height();
+        update_scroll_v(0);
+        // update_viewport_to_cursor();
     }
     void delete_words_forward(unsigned long amount = 1)
     {
@@ -490,6 +495,8 @@ public:
         current_line().erase(current_line().begin() + start_col, current_line().begin() + m_cursor.col);
         m_cursor.col = start_col;
         update_total_height();
+        // update_viewport_to_cursor();
+        update_scroll_v(0);
     }
     void insert_character(char_t c)
     {
@@ -624,30 +631,54 @@ public:
             pos.y += f_line_advance;
         }
         const float lines_missing = f_total_height - m_bounds.height;
-        if (lines_missing > 0) {
-            const auto drawn = m_bounds.height / f_total_height;
-            const auto w = (m_bounds.width * 0.02f);
-            const auto rec = Rectangle {
-                .x = m_bounds.width + m_bounds.x - w,
-                .y = m_bounds.y + m_bounds.height - (drawn * m_bounds.height) - ((f_total_height - m_bounds.height - m_scroll_v) / f_total_height) * m_bounds.height,
-                .width = w,
-                .height = drawn * m_bounds.height,
-            };
-            DrawRectangleRec(rec, WHITE);
+        if (lines_missing > 0)
+            draw_vertical_scroll_bar();
+    }
+    void draw_vertical_scroll_bar(void)
+    {
+        const auto drawn = m_bounds.height / f_total_height;
+        const auto rec = Rectangle {
+            .x = m_bounds.width + m_bounds.x - m_v_scroll_bar_width,
+            .y = m_bounds.y + m_bounds.height - (drawn * m_bounds.height) - ((f_total_height - m_bounds.height - m_scroll_v) / f_total_height) * m_bounds.height,
+            .width = m_v_scroll_bar_width,
+            .height = drawn * m_bounds.height,
+        };
+        DrawRectangleRec(rec, WHITE);
+    }
+    void update_vertical_scroll_bar(Vector2 p)
+    {
+        const auto point = (Vector2) {
+            .x = p.x - m_bounds.x,
+            .y = p.y - m_bounds.y + m_scroll_v,
+        };
+        const auto drawn = m_bounds.height / f_total_height;
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         }
     }
     void update_buffer_mouse(void)
     {
+        const auto p = GetMousePosition();
+        const auto point = (Vector2) {
+            .x = p.x - m_bounds.x,
+            .y = p.y - m_bounds.y + m_scroll_v,
+        };
+        if (CheckCollisionPointRec(point,
+                { .x = m_bounds.width - m_v_scroll_bar_width,
+                    .y = 0,
+                    .width = m_v_scroll_bar_width,
+                    .height = m_bounds.height })) {
+            update_vertical_scroll_bar(point);
+            return;
+        }
+        auto c = mouse_as_cursor_position(point);
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             clear_selection();
-            auto c = detect_point_over_buffer(GetMousePosition());
             m_cursor = c.has_value() ? *c : m_cursor;
         }
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             if (!get_selection()) {
                 start_selection();
             } else {
-                auto c = detect_point_over_buffer(GetMousePosition());
                 m_cursor = c.has_value() ? *c : m_cursor;
                 update_selection();
             }
@@ -659,7 +690,7 @@ public:
             else if (mouse_move < 0)
                 decrease_font_size();
         } else if (mouse_move != 0.0) {
-            update_scroll_v(mouse_move * -5);
+            update_scroll_v(mouse_move * -5 * (m_font_size / 2.));
         }
     }
     void update_buffer(void)
@@ -815,12 +846,8 @@ private:
         m_cursor.line = std::clamp(m_cursor.line, (long)0, (long)m_lines.size() - 1);
         m_cursor.col = std::clamp(m_cursor.col, (long)0, (long)current_line().size());
     }
-    std::optional<TextBuffer::Cursor> detect_point_over_buffer(const Vector2 p)
+    std::optional<TextBuffer::Cursor> mouse_as_cursor_position(const Vector2 point)
     {
-        const auto point = (Vector2) {
-            .x = p.x - m_bounds.x,
-            .y = p.y - m_bounds.y + m_scroll_v,
-        };
         if (point.x < 0 || point.x > m_bounds.width || point.y < 0 || point.y > m_bounds.height + m_scroll_v)
             return std::nullopt;
         long linen = point.y == 0 ? 0 : (long)(point.y / f_line_advance) % get_line_count();
@@ -894,7 +921,7 @@ int main(int argc, char** args)
     TextBuffer _text_buffer = { font, bounds };
     _text_buffer.insert_string("Welcome to Bootleg!");
     _text_buffer.set_font_size(50);
-    for(auto i = 0; i < 50; i++){
+    for (auto i = 0; i < 50; i++) {
         _text_buffer.insert_newline();
         _text_buffer.insert_string(std::format("{}", i));
     }
