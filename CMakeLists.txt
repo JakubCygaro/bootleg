@@ -13,8 +13,9 @@ target_compile_options(cppfeatures
     INTERFACE -Wall -Wextra
 )
 
-add_executable(bootleg
-    ${CMAKE_SOURCE_DIR}/src/main.cc
+add_executable(bed
+    ${CMAKE_SOURCE_DIR}/src/bed/main.cc
+    ${CMAKE_SOURCE_DIR}/src/buffer.cc
     ${CMAKE_SOURCE_DIR}/src/utf8.cc
 )
 
@@ -33,6 +34,6 @@ if (NOT raylib_FOUND)
   endif()
 endif()
 
-target_link_libraries(bootleg
+target_link_libraries(bed
     PRIVATE cppfeatures
     PRIVATE raylib)

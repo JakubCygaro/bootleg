@@ -1,0 +1,174 @@
+#ifndef BUFFER_HPP
+#define BUFFER_HPP
+
+#include "utf8.hpp"
+#include <algorithm>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <optional>
+#include <raylib.h>
+#include <string>
+#include <vector>
+
+#define IsKeyPressedOrRepeat(KEY) (IsKeyPressed(KEY) || IsKeyPressedRepeat(KEY))
+#define AnySpecialDown(SPECIAL_KEY) (IsKeyDown(KEY_LEFT_##SPECIAL_KEY) || IsKeyDown(KEY_RIGHT_##SPECIAL_KEY))
+
+struct TextBuffer {
+    using char_t = char;
+    using line_t = std::basic_string<char_t>;
+    struct Line {
+        line_t contents {};
+        std::optional<Vector2> dims {};
+    };
+    struct Cursor {
+        long line {};
+        long col {};
+        inline bool operator==(const Cursor& b) const
+        {
+            return (this->line == b.line) && (this->col == b.col);
+        }
+        inline bool operator!=(const Cursor& b) const
+        {
+            return !(b == *this);
+        }
+        inline bool operator<(const Cursor& b) const
+        {
+            return (this->line < b.line) || (this->line == b.line && this->col < b.col);
+        }
+        inline bool operator>(const Cursor& b) const
+        {
+            return b < *this;
+        }
+        inline bool operator<=(const Cursor& b) const
+        {
+            return (*this < b) || (*this == b);
+        }
+        inline bool operator>=(const Cursor& b) const
+        {
+            return (*this > b) || (*this == b);
+        }
+    };
+    struct Selection {
+        Cursor start {};
+        Cursor end {};
+        inline bool is_cursor_within(const Cursor& c) const noexcept
+        {
+            if (this->start <= this->end)
+                return (c > this->start && c <= this->end);
+            else
+                return (c > this->end && c <= this->start);
+        }
+    };
+
+private:
+    std::vector<Line> m_lines = { {} };
+    std::optional<Selection> m_selection {};
+    Cursor m_cursor = {};
+    Font m_font {};
+    Rectangle m_bounds = {};
+    int m_font_size = 24;
+    int m_spacing = 10;
+    int m_glyph_spacing = 2;
+    float m_scroll_v = 0.0;
+    float m_v_scroll_bar_width {};
+    float m_scroll_h = 0.0;
+    float m_cursor_dist = 0.0;
+
+    float f_scale_factor;
+    float f_line_advance;
+    float f_total_height;
+    float f_total_width;
+
+public:
+    Color foreground_color = WHITE;
+    Color background_color = BLACK;
+
+    TextBuffer() = delete;
+    TextBuffer(Font f, Rectangle bounds);
+    const Font& get_font() const;
+    void set_font(Font font);
+    int get_font_size() const;
+    void set_font_size(int sz);
+    int get_spacing() const;
+    void set_spacing(int s);
+    float get_width() const;
+    void set_width(float w);
+    float get_height() const;
+    void set_height(float h);
+    Vector2 get_position() const;
+    void set_position(Vector2 p);
+    void increase_font_size();
+    void decrease_font_size();
+    bool is_cursor_at_begining(void);
+    bool is_cursor_at_end(void);
+    line_t& current_line(void);
+    const line_t& current_line(void) const;
+    const std::optional<Selection>& get_selection(void);
+    // if | is the cursor then x is the character
+    //
+    // x|a
+    std::optional<line_t::value_type> get_char_under_cursor(void) const;
+    // if | is the cursor then x is the character
+    //
+    // a|x
+    std::optional<line_t::value_type> get_char_after_cursor(void) const;
+    size_t get_line_count(void) const;
+    long count_chars_to_cursor_in_line(void);
+    //moves
+    // returns how many positions the cursor moved (across lines, and counted in bytes)
+    long move_cursor_h(long amount, bool with_selection = false);
+    long move_cursor_v(long amount, bool with_selection = false);
+    long move_cursor_word(long amount, bool with_selection = false);
+    long move_cursor_left(long amount = 1, bool with_selection = false);
+    long move_cursor_right(long amount = 1, bool with_selection = false);
+    void move_cursor_down(long amount = 1, bool with_selection = false);
+    void move_cursor_up(long amount = 1, bool with_selection = false);
+    // concats
+    bool concat_backward(void);
+    bool concat_forward(void);
+    // deletes
+    void delete_characters_back(unsigned long amount = 1);
+    void delete_characters_forward(unsigned long amount = 1);
+    void delete_words_back(unsigned long amount = 1);
+    void delete_words_forward(unsigned long amount = 1);
+    void delete_line(size_t line_num);
+    void delete_lines(size_t start, size_t end);
+    // jumps
+    void jump_cursor_to_top(bool with_selection = false);
+    void jump_cursor_to_bottom(bool with_selection = false);
+    void jump_cursor_to_end(bool with_selection = false);
+    void jump_cursor_to_start(bool with_selection = false);
+    // inserts
+    void insert_newline(void);
+    void insert_character(char_t c);
+    void insert_string(line_t&& str);
+    // selection
+    void start_selection(void);
+    void clear_selection(void);
+    void delete_selection(void);
+    line_t copy_selection(void);
+    // measures
+    float measure_line_till_cursor(void);
+    void measure_lines_width(void);
+    // draws
+    void draw(void);
+    void draw_vertical_scroll_bar(void);
+    // updates
+    //  void update_vertical_scroll_bar(Vector2 p);
+    void update_buffer_mouse(void);
+    void update_buffer(void);
+    /// this function ensures that the viewport contains the cursor (the cursor is visible on the screen)
+    void update_viewport_to_cursor(void);
+
+private:
+    std::optional<TextBuffer::Cursor> mouse_as_cursor_position(const Vector2 point);
+    void clamp_cursor(void);
+    void update_scroll_h(void);
+    void update_total_height(void);
+    void update_font_measurements(void);
+    void update_selection(void);
+    void update_scroll_v(float v);
+};
+
+#endif
