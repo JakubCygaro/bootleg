@@ -50,7 +50,7 @@ int main(int argc, char** args)
     DEFER(
         if (font.texture.id != GetFontDefault().texture.id)
             UnloadFont(font););
-    TextBuffer _text_buffer = { font, bounds };
+    bed::TextBuffer _text_buffer = { font, bounds };
     _text_buffer.insert_string("Welcome to Bed!");
     _text_buffer.set_font_size(50);
     SetTargetFPS(60);

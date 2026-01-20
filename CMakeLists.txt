@@ -13,10 +13,29 @@ target_compile_options(cppfeatures
     INTERFACE -Wall -Wextra
 )
 
-add_executable(bed
-    ${CMAKE_SOURCE_DIR}/src/bed/main.cc
+add_library(bedl STATIC
     ${CMAKE_SOURCE_DIR}/src/buffer.cc
     ${CMAKE_SOURCE_DIR}/src/utf8.cc
+)
+target_link_libraries(bedl
+    PRIVATE cppfeatures
+    PRIVATE raylib
+)
+add_executable(bed
+    ${CMAKE_SOURCE_DIR}/src/bed/main.cc
+)
+target_link_libraries(bed
+    PRIVATE bedl
+)
+add_executable(bootleg
+    ${CMAKE_SOURCE_DIR}/src/main.cc
+    ${CMAKE_SOURCE_DIR}/src/bootleg/editor_window.cc
+    ${CMAKE_SOURCE_DIR}/src/bootleg/game.cc
+)
+target_link_libraries(bootleg
+    PRIVATE bedl
+    PRIVATE cppfeatures
+    PRIVATE raylib
 )
 
 find_package(raylib)
@@ -36,4 +55,4 @@ endif()
 
 target_link_libraries(bed
     PRIVATE cppfeatures
-    PRIVATE raylib)
+)

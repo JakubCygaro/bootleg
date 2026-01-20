@@ -14,6 +14,8 @@
 #define IsKeyPressedOrRepeat(KEY) (IsKeyPressed(KEY) || IsKeyPressedRepeat(KEY))
 #define AnySpecialDown(SPECIAL_KEY) (IsKeyDown(KEY_LEFT_##SPECIAL_KEY) || IsKeyDown(KEY_RIGHT_##SPECIAL_KEY))
 
+namespace bed {
+
 struct TextBuffer {
     using char_t = char;
     using line_t = std::basic_string<char_t>;
@@ -115,8 +117,8 @@ public:
     std::optional<line_t::value_type> get_char_after_cursor(void) const;
     size_t get_line_count(void) const;
     long count_chars_to_cursor_in_line(void);
-    //moves
-    // returns how many positions the cursor moved (across lines, and counted in bytes)
+    // moves
+    //  returns how many positions the cursor moved (across lines, and counted in bytes)
     long move_cursor_h(long amount, bool with_selection = false);
     long move_cursor_v(long amount, bool with_selection = false);
     long move_cursor_word(long amount, bool with_selection = false);
@@ -170,5 +172,6 @@ private:
     void update_selection(void);
     void update_scroll_v(float v);
 };
+}
 
 #endif

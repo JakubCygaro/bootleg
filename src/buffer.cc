@@ -1,5 +1,7 @@
 #include "buffer.hpp"
 
+namespace bed {
+
 TextBuffer::TextBuffer(Font f, Rectangle bounds)
     : m_font { f }
     , m_bounds { bounds }
@@ -850,4 +852,5 @@ void TextBuffer::update_scroll_v(float v)
     if (f_total_height <= m_bounds.height)
         return;
     m_scroll_v = std::clamp(m_scroll_v + v, 0.0f, f_total_height - m_bounds.height);
+}
 }
