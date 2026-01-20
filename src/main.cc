@@ -18,7 +18,7 @@ struct TextBuffer {
     using line_t = std::basic_string<char_t>;
     struct Line {
         line_t contents {};
-        std::optional<Rectangle> dims {};
+        std::optional<Vector2> dims {};
     };
     struct Cursor {
         long line {};
@@ -71,10 +71,13 @@ private:
     int m_glyph_spacing = 2;
     float m_scroll_v = 0.0;
     float m_v_scroll_bar_width {};
+    float m_scroll_h = 0.0;
+    float m_cursor_dist = 0.0;
 
     float f_scale_factor;
     float f_line_advance;
     float f_total_height;
+    float f_total_width;
 
 public:
     Color foreground_color = WHITE;
@@ -119,11 +122,13 @@ public:
     {
         m_font_size = std::clamp(m_font_size + 1, 10, 60);
         update_font_measurements();
+        update_viewport_to_cursor();
     }
     void decrease_font_size()
     {
         m_font_size = std::clamp(m_font_size - 1, 10, 60);
         update_font_measurements();
+        update_viewport_to_cursor();
     }
     bool is_cursor_at_begining(void)
     {
@@ -353,6 +358,7 @@ public:
         if (with_selection)
             update_selection();
         update_viewport_to_cursor();
+        update_scroll_h();
         return moved;
     }
     long count_chars_to_cursor_in_line(void)
@@ -428,6 +434,7 @@ public:
             current_line().append(m_lines[m_cursor.line + 1].contents);
             delete_line(m_cursor.line + 1);
             update_total_height();
+            update_scroll_h();
             return true;
         }
         return false;
@@ -438,6 +445,7 @@ public:
             current_line().append(m_lines[m_cursor.line + 1].contents);
             delete_line(m_cursor.line + 1);
             update_total_height();
+            update_scroll_h();
             return true;
         }
         return false;
@@ -453,6 +461,7 @@ public:
         }
         current_line().erase(current_line().begin() + m_cursor.col, current_line().begin() + m_cursor.col + moved);
         update_total_height();
+        update_scroll_h();
     }
     void delete_characters_forward(unsigned long amount = 1)
     {
@@ -467,6 +476,7 @@ public:
         current_line().erase(current_line().begin() + start_col, current_line().begin() + m_cursor.col);
         m_cursor.col = start_col;
         update_total_height();
+        update_scroll_h();
     }
     void delete_words_back(unsigned long amount = 1)
     {
@@ -480,7 +490,7 @@ public:
         current_line().erase(current_line().begin() + m_cursor.col, current_line().begin() + m_cursor.col + moved);
         update_total_height();
         update_scroll_v(0);
-        // update_viewport_to_cursor();
+        update_scroll_h();
     }
     void delete_words_forward(unsigned long amount = 1)
     {
@@ -495,14 +505,15 @@ public:
         current_line().erase(current_line().begin() + start_col, current_line().begin() + m_cursor.col);
         m_cursor.col = start_col;
         update_total_height();
-        // update_viewport_to_cursor();
         update_scroll_v(0);
+        update_scroll_h();
     }
     void insert_character(char_t c)
     {
         current_line().push_back('!');
         std::shift_right(current_line().begin() + m_cursor.col, current_line().end(), 1);
         current_line()[m_cursor.col++] = static_cast<char_t>(c);
+        update_scroll_h();
     }
     void insert_string(line_t&& str)
     {
@@ -510,6 +521,7 @@ public:
         current_line().insert(m_cursor.col, str);
         m_cursor.col += len;
         update_total_height();
+        update_viewport_to_cursor();
     }
     void jump_cursor_to_top(bool with_selection = false)
     {
@@ -529,12 +541,14 @@ public:
         m_cursor.col = current_line().size();
         if (with_selection)
             update_selection();
+        update_scroll_h();
     }
     void jump_cursor_to_start(bool with_selection = false)
     {
         m_cursor.col = 0;
         if (with_selection)
             update_selection();
+        update_scroll_h();
     }
     void insert_newline(void)
     {
@@ -552,18 +566,14 @@ public:
         update_total_height();
         update_viewport_to_cursor();
     }
+    /// this function ensures that the viewport contains the cursor (the cursor is visible on the screen)
     void update_viewport_to_cursor(void)
     {
         const auto current_line_pos = f_line_advance * m_cursor.line;
-        if (current_line_pos >= m_bounds.height + m_scroll_v) {
-            // update_scroll_v((f_line_advance * (m_cursor.line + 1) - m_scroll_v) - m_bounds.height);
-            update_scroll_v(current_line_pos - m_bounds.height + m_scroll_v + f_line_advance);
-        }
-        if (current_line_pos < m_scroll_v) {
-            // m_scroll_v -= (f_line_advance * (m_cursor.line + 1) - m_scroll_v) - m_bounds.height;
+        if (current_line_pos >= m_bounds.height + m_scroll_v || current_line_pos < m_scroll_v) {
             update_scroll_v(current_line_pos - (m_bounds.height + m_scroll_v - f_line_advance));
-            // m_scroll_v -= f_line_advance;
         }
+        update_scroll_h();
     }
     void start_selection(void)
     {
@@ -573,12 +583,38 @@ public:
     {
         m_selection = std::nullopt;
     }
-    void draw_buffer(void)
+    float measure_line_till_cursor(void)
+    {
+        if (current_line().size() == 0)
+            return 0;
+        float advance = 0.0;
+        for (long col = 0; col <= m_cursor.col;) {
+            int csz = 1;
+            int c = GetCodepoint(&current_line().data()[col], &csz);
+            int idx = GetGlyphIndex(m_font, c);
+            float glyph_width = (m_font.glyphs[idx].advanceX == 0)
+                ? m_font.recs[idx].width * f_scale_factor
+                : m_font.glyphs[idx].advanceX * f_scale_factor;
+            advance += glyph_width + m_glyph_spacing;
+            col += csz;
+        }
+        return advance;
+    }
+    void measure_lines_width(void)
+    {
+        f_total_width = 0.0;
+        for (auto& line_data : m_lines) {
+            const auto dims = MeasureTextEx(m_font, line_data.contents.data(), m_font_size, m_spacing + m_glyph_spacing);
+            line_data.dims = dims;
+            if (dims.x > f_total_width)
+                f_total_width = dims.x;
+        }
+    }
+    void draw(void)
     {
         // for selection checking
         TextBuffer::Cursor _cursor = {};
-        Vector2 pos = { m_bounds.x, m_bounds.y - m_scroll_v };
-        Rectangle last_c_r = {};
+        Vector2 pos = { m_bounds.x - m_scroll_h, m_bounds.y - m_scroll_v };
         for (std::size_t linen = 0; linen < get_line_count(); linen++) {
             auto& current_line = m_lines[linen];
             for (size_t col = 0; col < current_line.contents.size();) {
@@ -586,12 +622,6 @@ public:
                 int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
                 int idx = GetGlyphIndex(m_font, c);
                 const float glyph_width = (m_font.glyphs[idx].advanceX == 0) ? m_font.recs[idx].width * f_scale_factor : m_font.glyphs[idx].advanceX * f_scale_factor;
-                if (pos.x + glyph_width > m_bounds.width) {
-                    break;
-                }
-                // float glyph_height = font.recs[idx].height * scale_factor;
-
-                auto r = GetGlyphAtlasRec(m_font, idx);
                 if ((long)linen == m_cursor.line && (long)col == m_cursor.col) {
                     DrawRectangleRec(Rectangle {
                                          .x = pos.x,
@@ -616,7 +646,6 @@ public:
                 }
                 pos.x += glyph_width + m_glyph_spacing;
                 col += csz;
-                last_c_r = r;
             }
             if (m_cursor.line == (long)linen && m_cursor.col == (long)current_line.contents.size()) {
                 auto rect = Rectangle {
@@ -627,12 +656,12 @@ public:
                 };
                 DrawRectangleRec(rect, foreground_color);
             }
-            pos.x = 0;
+            pos.x = m_bounds.x - m_scroll_h;
             pos.y += f_line_advance;
         }
-        const float lines_missing = f_total_height - m_bounds.height;
-        if (lines_missing > 0)
-            draw_vertical_scroll_bar();
+        // const float lines_missing = f_total_height - m_bounds.height;
+        // if (lines_missing > 0)
+        //     draw_vertical_scroll_bar();
     }
     void draw_vertical_scroll_bar(void)
     {
@@ -645,31 +674,31 @@ public:
         };
         DrawRectangleRec(rec, WHITE);
     }
-    void update_vertical_scroll_bar(Vector2 p)
-    {
-        const auto point = (Vector2) {
-            .x = p.x - m_bounds.x,
-            .y = p.y - m_bounds.y + m_scroll_v,
-        };
-        const auto drawn = m_bounds.height / f_total_height;
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        }
-    }
+    // void update_vertical_scroll_bar(Vector2 p)
+    // {
+    //     const auto point = (Vector2) {
+    //         .x = p.x - m_bounds.x,
+    //         .y = p.y - m_bounds.y + m_scroll_v,
+    //     };
+    //     const auto drawn = m_bounds.height / f_total_height;
+    //     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    //     }
+    // }
     void update_buffer_mouse(void)
     {
         const auto p = GetMousePosition();
         const auto point = (Vector2) {
-            .x = p.x - m_bounds.x,
+            .x = p.x - m_bounds.x + m_scroll_h,
             .y = p.y - m_bounds.y + m_scroll_v,
         };
-        if (CheckCollisionPointRec(point,
-                { .x = m_bounds.width - m_v_scroll_bar_width,
-                    .y = 0,
-                    .width = m_v_scroll_bar_width,
-                    .height = m_bounds.height })) {
-            update_vertical_scroll_bar(point);
-            return;
-        }
+        // if (CheckCollisionPointRec(point,
+        //         { .x = m_bounds.width - m_v_scroll_bar_width,
+        //             .y = 0,
+        //             .width = m_v_scroll_bar_width,
+        //             .height = m_bounds.height })) {
+        //     update_vertical_scroll_bar(point);
+        //     return;
+        // }
         auto c = mouse_as_cursor_position(point);
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             clear_selection();
@@ -695,8 +724,8 @@ public:
     }
     void update_buffer(void)
     {
-        update_buffer_mouse();
         const bool shift_down = AnySpecialDown(SHIFT);
+        update_buffer_mouse();
         const auto start_pos = m_cursor;
         if (IsKeyPressedOrRepeat(KEY_LEFT)) {
             if (AnySpecialDown(CONTROL)) {
@@ -775,7 +804,6 @@ public:
         }
         if (IsKeyPressedOrRepeat(KEY_V) && AnySpecialDown(CONTROL)) {
             const char* clipboard = GetClipboardText();
-            std::printf("clipboard: %s\n", clipboard);
             TextBuffer::line_t line {};
             for (size_t i = 0; clipboard[i] != '\0'; i++) {
                 if (clipboard[i] == '\n') {
@@ -822,9 +850,16 @@ public:
         }
         if (start_pos != m_cursor && !shift_down)
             clear_selection();
-    }
 
+    }
 private:
+    void update_scroll_h(void){
+        m_cursor_dist = measure_line_till_cursor();
+        if (m_cursor_dist > m_bounds.width) {
+            m_scroll_h = m_cursor_dist - m_bounds.width;
+        } else
+            m_scroll_h = 0.0;
+    }
     void update_total_height(void)
     {
         f_total_height = f_line_advance * m_lines.size();
@@ -848,7 +883,7 @@ private:
     }
     std::optional<TextBuffer::Cursor> mouse_as_cursor_position(const Vector2 point)
     {
-        if (point.x < 0 || point.x > m_bounds.width || point.y < 0 || point.y > m_bounds.height + m_scroll_v)
+        if (point.x < 0 || point.x > m_bounds.width + m_scroll_h || point.y < 0 || point.y > m_bounds.height + m_scroll_v)
             return std::nullopt;
         long linen = point.y == 0 ? 0 : (long)(point.y / f_line_advance) % get_line_count();
         auto& line = m_lines[linen];
@@ -930,7 +965,7 @@ int main(int argc, char** args)
         _text_buffer.update_buffer();
         BeginDrawing();
         ClearBackground(BLACK);
-        _text_buffer.draw_buffer();
+        _text_buffer.draw();
         EndDrawing();
     }
 }
