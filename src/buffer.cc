@@ -63,6 +63,7 @@ void TextBuffer::set_position(Vector2 p)
 {
     m_bounds.x = p.x;
     m_bounds.y = p.y;
+    update_total_height();
     update_viewport_to_cursor();
 }
 void TextBuffer::increase_font_size()

@@ -1,25 +1,21 @@
-#include "bootleg/editor_window.hpp"
 #include "bootleg/game.hpp"
 #include "defer.hpp"
 #include <raylib.h>
-#include <memory>
 
+#define WIDTH 800
+#define HEIGHT 600
 
 int main(void)
 {
-    InitWindow(800, 600, "bed");
+    InitWindow(WIDTH, HEIGHT, "bed");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
-    auto font = GetFontDefault();
-    auto game = boot::Game {font};
+    auto game = boot::Game {WIDTH, HEIGHT};
     DEFER(CloseWindow());
-    DEFER(
-        if (font.texture.id != GetFontDefault().texture.id)
-            UnloadFont(font););
     SetTargetFPS(60);
-    auto w = std::make_unique<boot::EditorWindow>(boot::EditorWindow(font, { 0, 0, 800., 600. }));
-    game.windows.push_back(std::move(w));
+    game.init();
     while (!WindowShouldClose()) {
         game.update();
         game.draw();
     }
+    game.deinit();
 }
