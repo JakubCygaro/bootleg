@@ -7,7 +7,7 @@
 
 int main(void)
 {
-    InitWindow(WIDTH, HEIGHT, "bed");
+    InitWindow(WIDTH, HEIGHT, "Bootleg");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     auto game = boot::Game {WIDTH, HEIGHT};
     DEFER(CloseWindow());

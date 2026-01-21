@@ -40,6 +40,8 @@ void boot::EditorWindow::update(Game& game_state)
         || (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && cube_clicked);
     if (cube_clicked) {
         UpdateCamera(&m_camera, CAMERA_THIRD_PERSON);
+    } else if(IsKeyPressed(KEY_ENTER) && AnySpecialDown(SHIFT)){
+        game_state.load_source(m_text_buffer->get_contents_as_string());
     } else {
         this->m_text_buffer->update_buffer();
     }
@@ -54,11 +56,13 @@ void boot::EditorWindow::draw(Game& game_state)
     BeginMode3D(m_camera);
     const auto& cube = game_state.cube;
     const auto brick_width = 1.0;
-    for (int x = -(cube.x / 2); x <= (cube.x / 2); x++) {
+    for (int x = -(cube.x / 2); x < (cube.x / 2); x++) {
         for (int y = brick_width / 2; y < brick_width + cube.y; y++) {
-            for (int z = -(cube.z / 2); z <= (cube.z / 2); z++) {
+            for (int z = -(cube.z / 2); z < (cube.z / 2); z++) {
+                Color c = game_state.color_for(x + (cube.x / 2), y - brick_width / 2, z + cube.z /2);
                 Vector3 pos = (Vector3) { (float)x , (float)y, (float)z };
-                DrawCube(pos, brick_width, brick_width, brick_width, RED);
+                // Color c = RED;
+                DrawCube(pos, brick_width, brick_width, brick_width, c);
             }
         }
     }

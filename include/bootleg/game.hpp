@@ -36,6 +36,21 @@ public:
 
 struct CubeData {
     int x {}, y {}, z {};
+    std::vector<std::vector<std::vector<Color>>> color_data {};
+    inline CubeData(int x, int y, int z)
+        : x(x)
+        , y(y)
+        , z(z)
+        , color_data(x, std::vector<std::vector<Color>>(y, std::vector<Color>(z)))
+    {
+    }
+    inline CubeData()
+        : x(0)
+        , y(0)
+        , z(0)
+        , color_data(0)
+    {
+    }
 };
 
 class Game {
@@ -55,7 +70,8 @@ public:
     void deinit();
     void update();
     void draw();
-    void execute_source(const std::string&);
+    void load_source(const std::string&);
+    Color color_for(int x, int y, int z);
 
 private:
     void init_lua_state(void);

@@ -1,4 +1,6 @@
 #include <bootleg/game.hpp>
+#include <cstdio>
+#include <print>
 #include <raylib.h>
 
 #ifdef __cplusplus
@@ -34,6 +36,15 @@ void boot::Game::init_lua_state(void)
 {
     m_lua_state = luaL_newstate();
     luaL_openlibs(m_lua_state);
+    lua_pushinteger(m_lua_state, 0);
+    lua_setglobal(m_lua_state, "x");
+    lua_pushinteger(m_lua_state, 0);
+    lua_setglobal(m_lua_state, "y");
+    lua_pushinteger(m_lua_state, 0);
+    lua_setglobal(m_lua_state, "z");
+    lua_pushinteger(m_lua_state, 0);
+    lua_setglobal(m_lua_state, "Color");
+    lua_settop(m_lua_state, 0);
 }
 void boot::Game::deinit()
 {
@@ -84,7 +95,31 @@ void boot::Game::draw()
     }
     EndDrawing();
 }
-void boot::Game::execute_source(const std::string& source)
+void boot::Game::load_source(const std::string& source)
 {
-
+    for (int x = 0; x < cube.x; x++) {
+        for (int y = 0; y < cube.y; y++) {
+            for (int z = 0; z < cube.z; z++) {
+                lua_pushinteger(m_lua_state, x);
+                lua_setglobal(m_lua_state, "x");
+                lua_pushinteger(m_lua_state, y);
+                lua_setglobal(m_lua_state, "y");
+                lua_pushinteger(m_lua_state, z);
+                lua_setglobal(m_lua_state, "z");
+                if(luaL_dostring(m_lua_state, source.data())){
+                    std::printf("pcall failed : %s\n",
+                            lua_tostring(m_lua_state, -1));
+                    return;
+                }
+                lua_getglobal(m_lua_state, "Color");
+                unsigned char c = lua_tointeger(m_lua_state, -1);
+                lua_settop(m_lua_state, 0);
+                cube.color_data[x][y][z] = { c, c, c, 255 };
+            }
+        }
+    }
+}
+Color boot::Game::color_for(int x, int y, int z)
+{
+    return this->cube.color_data[x][y][z];
 }
