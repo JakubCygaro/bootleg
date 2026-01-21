@@ -100,6 +100,7 @@ public:
     void set_height(float h);
     Vector2 get_position() const;
     void set_position(Vector2 p);
+    line_t get_contents_as_string(void) const;
     void increase_font_size();
     void decrease_font_size();
     bool is_cursor_at_begining(void);

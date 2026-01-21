@@ -10,7 +10,7 @@ boot::EditorWindow::EditorWindow()
 void boot::EditorWindow::init(Game& game_state)
 {
     m_text_buffer = std::make_unique<bed::TextBuffer>(game_state.m_font, Rectangle {});
-    m_text_buffer->insert_string("sperma");
+    m_text_buffer->insert_string("Bootleg");
     m_text_buffer->set_font_size(30);
     m_text_buffer->set_height(m_bounds.height);
     m_text_buffer->set_width(m_bounds.width / 2);

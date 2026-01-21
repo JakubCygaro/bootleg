@@ -854,4 +854,12 @@ void TextBuffer::update_scroll_v(float v)
         return;
     m_scroll_v = std::clamp(m_scroll_v + v, 0.0f, f_total_height - m_bounds.height);
 }
+TextBuffer::line_t TextBuffer::get_contents_as_string(void) const{
+    line_t ret = {};
+    for(const auto& line : m_lines){
+        ret.append(line.contents);
+        ret.push_back('\n');
+    }
+    return ret;
+}
 }

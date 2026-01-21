@@ -8,6 +8,33 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 add_library(cppfeatures INTERFACE)
 
+find_package(Lua)
+
+if(Lua_FOUND AND NOT TARGET Lua::Lua)
+  add_library(Lua::Lua INTERFACE IMPORTED)
+  set_target_properties(
+    Lua::Lua
+    PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${LUA_INCLUDE_DIR}"
+      INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}"
+  )
+endif()
+
+find_package(raylib)
+if (NOT raylib_FOUND)
+  include(FetchContent)
+  FetchContent_Declare(
+    raylib
+    DOWNLOAD_EXTRACT_TIMESTAMP OFF
+    URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
+  )
+  FetchContent_GetProperties(raylib)
+  if (NOT raylib_POPULATED)
+    set(FETCHCONTENT_QUIET NO)
+    FetchContent_MakeAvailable(raylib)
+  endif()
+endif()
+
 target_compile_features(cppfeatures INTERFACE cxx_std_23)
 target_compile_options(cppfeatures
     INTERFACE -Wall -Wextra
@@ -36,22 +63,8 @@ target_link_libraries(bootleg
     PRIVATE bedl
     PRIVATE cppfeatures
     PRIVATE raylib
+    PRIVATE Lua::Lua
 )
-
-find_package(raylib)
-if (NOT raylib_FOUND)
-  include(FetchContent)
-  FetchContent_Declare(
-    raylib
-    DOWNLOAD_EXTRACT_TIMESTAMP OFF
-    URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
-  )
-  FetchContent_GetProperties(raylib)
-  if (NOT raylib_POPULATED)
-    set(FETCHCONTENT_QUIET NO)
-    FetchContent_MakeAvailable(raylib)
-  endif()
-endif()
 
 target_link_libraries(bed
     PRIVATE cppfeatures

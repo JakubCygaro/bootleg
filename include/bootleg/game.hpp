@@ -1,6 +1,13 @@
 #ifndef BOOT_GAME_HPP
 #define BOOT_GAME_HPP
 #include <buffer.hpp>
+#ifdef __cplusplus
+extern "C" {
+#include <lauxlib.h>
+#include <lua.h>
+#include <lualib.h>
+}
+#endif
 #include <memory>
 #include <raylib.h>
 #include <vector>
@@ -33,6 +40,7 @@ struct CubeData {
 
 class Game {
     Vector2 m_dims {};
+    lua_State* m_lua_state {};
 
 public:
     Font m_font;
@@ -47,6 +55,10 @@ public:
     void deinit();
     void update();
     void draw();
+    void execute_source(const std::string&);
+
+private:
+    void init_lua_state(void);
 };
 class EditorWindow final : public Window {
     std::unique_ptr<bed::TextBuffer> m_text_buffer;
@@ -54,6 +66,7 @@ class EditorWindow final : public Window {
     RenderTexture2D m_render_tex = {};
     Vector2 m_render_tex_dims = { 800, 800 };
     Rectangle m_cube_bounds = {};
+
 public:
     explicit EditorWindow();
     virtual void init(Game& game_state) override;
