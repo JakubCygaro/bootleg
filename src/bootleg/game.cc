@@ -32,6 +32,16 @@ void boot::Game::init()
         window->init(*this);
     }
 }
+static void setup_colors(lua_State* lua) {
+    lua_pushinteger(lua, 0x00000000);
+    lua_setglobal(lua, "BLANK");
+    lua_pushinteger(lua, 0xff0000ff);
+    lua_setglobal(lua, "RED");
+    lua_pushinteger(lua, 0x00ff00ff);
+    lua_setglobal(lua, "GREEN");
+    lua_pushinteger(lua, 0x0000ffff);
+    lua_setglobal(lua, "BLUE");
+}
 void boot::Game::init_lua_state(void)
 {
     m_lua_state = luaL_newstate();
@@ -44,6 +54,7 @@ void boot::Game::init_lua_state(void)
     lua_setglobal(m_lua_state, "z");
     lua_pushinteger(m_lua_state, 0);
     lua_setglobal(m_lua_state, "Color");
+    setup_colors(m_lua_state);
     lua_settop(m_lua_state, 0);
 }
 void boot::Game::deinit()
@@ -95,11 +106,24 @@ void boot::Game::draw()
     }
     EndDrawing();
 }
+static Color decode_color_from_hex(unsigned int hex_color){
+    Color ret = { };
+    ret.a |= hex_color;
+    hex_color >>= 8;
+    ret.b |= hex_color;
+    hex_color >>= 8;
+    ret.g |= hex_color;
+    hex_color >>= 8;
+    ret.r |= hex_color;
+    return ret;
+}
 void boot::Game::load_source(const std::string& source)
 {
     for (int x = 0; x < cube.x; x++) {
         for (int y = 0; y < cube.y; y++) {
             for (int z = 0; z < cube.z; z++) {
+                lua_pushinteger(m_lua_state, 0);
+                lua_setglobal(m_lua_state, "Color");
                 lua_pushinteger(m_lua_state, x);
                 lua_setglobal(m_lua_state, "x");
                 lua_pushinteger(m_lua_state, y);
@@ -112,9 +136,9 @@ void boot::Game::load_source(const std::string& source)
                     return;
                 }
                 lua_getglobal(m_lua_state, "Color");
-                unsigned char c = lua_tointeger(m_lua_state, -1);
+                unsigned int c = lua_tointeger(m_lua_state, -1);
                 lua_settop(m_lua_state, 0);
-                cube.color_data[x][y][z] = { c, c, c, 255 };
+                cube.color_data[x][y][z] = decode_color_from_hex(c);
             }
         }
     }

@@ -50,7 +50,6 @@ void boot::EditorWindow::update(Game& game_state)
 void boot::EditorWindow::draw(Game& game_state)
 {
     this->m_text_buffer->draw();
-
     BeginTextureMode(m_render_tex);
     ClearBackground(WHITE);
     BeginMode3D(m_camera);
@@ -61,8 +60,8 @@ void boot::EditorWindow::draw(Game& game_state)
             for (int z = -(cube.z / 2); z < (cube.z / 2); z++) {
                 Color c = game_state.color_for(x + (cube.x / 2), y - brick_width / 2, z + cube.z /2);
                 Vector3 pos = (Vector3) { (float)x , (float)y, (float)z };
-                // Color c = RED;
-                DrawCube(pos, brick_width, brick_width, brick_width, c);
+                if(c.a == 255)
+                    DrawCube(pos, brick_width, brick_width, brick_width, c);
             }
         }
     }
