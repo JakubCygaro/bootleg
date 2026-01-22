@@ -54,6 +54,15 @@ void TextBuffer::set_height(float h)
 {
     m_bounds.height = h;
     update_viewport_to_cursor();
+    update_total_height();
+}
+Rectangle TextBuffer::get_bounds() const {
+    return m_bounds;
+}
+void TextBuffer::set_bounds(Rectangle b) {
+    m_bounds = b;
+    update_viewport_to_cursor();
+    update_total_height();
 }
 Vector2 TextBuffer::get_position() const
 {
@@ -557,9 +566,11 @@ void TextBuffer::measure_lines_width(void)
 }
 void TextBuffer::draw(void)
 {
+    DrawRectangleRec(m_bounds, background_color);
     // for selection checking
     TextBuffer::Cursor _cursor = {};
     Vector2 pos = { m_bounds.x - m_scroll_h, m_bounds.y - m_scroll_v };
+    if(pos.x < m_bounds.x || pos.x)
     for (std::size_t linen = 0; linen < get_line_count(); linen++) {
         auto& current_line = m_lines[linen];
         for (size_t col = 0; col < current_line.contents.size();) {
@@ -670,6 +681,9 @@ void TextBuffer::update_buffer_mouse(void)
 void TextBuffer::update_buffer(void)
 {
     const bool shift_down = AnySpecialDown(SHIFT);
+    if(shift_down && !m_selection)
+        start_selection();
+
     update_buffer_mouse();
     const auto start_pos = m_cursor;
     if (IsKeyPressedOrRepeat(KEY_LEFT)) {

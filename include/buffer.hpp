@@ -98,6 +98,8 @@ public:
     void set_width(float w);
     float get_height() const;
     void set_height(float h);
+    Rectangle get_bounds() const;
+    void set_bounds(Rectangle b);
     Vector2 get_position() const;
     void set_position(Vector2 p);
     line_t get_contents_as_string(void) const;

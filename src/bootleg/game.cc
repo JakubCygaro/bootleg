@@ -33,14 +33,18 @@ void boot::Game::init()
     }
 }
 static void setup_colors(lua_State* lua) {
-    lua_pushinteger(lua, 0x00000000);
-    lua_setglobal(lua, "BLANK");
-    lua_pushinteger(lua, 0xff0000ff);
-    lua_setglobal(lua, "RED");
-    lua_pushinteger(lua, 0x00ff00ff);
-    lua_setglobal(lua, "GREEN");
-    lua_pushinteger(lua, 0x0000ffff);
-    lua_setglobal(lua, "BLUE");
+    const auto add_color = [=](const char* name, unsigned int hex){
+        lua_pushinteger(lua, hex);
+        lua_setglobal(lua, name);
+    };
+    add_color("BLANK", boot::colors::CBLANK);
+    add_color("RED", boot::colors::CRED);
+    add_color("GREEN", boot::colors::CGREEN);
+    add_color("BLUE", boot::colors::CBLUE);
+    add_color("MAGENTA", boot::colors::CMAGENTA);
+    add_color("ORANGE", boot::colors::CORANGE);
+    add_color("BLACK", boot::colors::CBLACK);
+    add_color("YELLOW", boot::colors::CYELLOW);
 }
 void boot::Game::init_lua_state(void)
 {
@@ -115,6 +119,7 @@ static Color decode_color_from_hex(unsigned int hex_color){
     ret.g |= hex_color;
     hex_color >>= 8;
     ret.r |= hex_color;
+    std::println("{:x}", hex_color);
     return ret;
 }
 void boot::Game::load_source(const std::string& source)

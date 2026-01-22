@@ -11,7 +11,21 @@ extern "C" {
 #include <memory>
 #include <raylib.h>
 #include <vector>
+
+#ifndef STRINGIFY
+#define STRINGIFY(TOKEN) #TOKEN
+#endif
 namespace boot {
+namespace colors {
+    constexpr const unsigned int CBLANK = 0x00000000;
+    constexpr const unsigned int CRED = 0xff0000ff;
+    constexpr const unsigned int CGREEN = 0x00ff00ff;
+    constexpr const unsigned int CBLUE = 0x0000ffff;
+    constexpr const unsigned int CMAGENTA = 0xff00ffff;
+    constexpr const unsigned int CORANGE = 0xffb300ff;
+    constexpr const unsigned int CYELLOW = 0xf7ff00ff;
+    constexpr const unsigned int CBLACK = 0xffffffff;
+}
 class Game;
 
 struct Window {
