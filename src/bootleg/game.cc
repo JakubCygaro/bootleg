@@ -119,7 +119,6 @@ static Color decode_color_from_hex(unsigned int hex_color){
     ret.g |= hex_color;
     hex_color >>= 8;
     ret.r |= hex_color;
-    std::println("{:x}", hex_color);
     return ret;
 }
 void boot::Game::load_source(const std::string& source)

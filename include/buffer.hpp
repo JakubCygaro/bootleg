@@ -82,6 +82,8 @@ private:
     float f_total_height;
     float f_total_width;
 
+    bool m_wrap_lines = false;
+
 public:
     Color foreground_color = WHITE;
     Color background_color = BLACK;
@@ -107,6 +109,8 @@ public:
     void decrease_font_size();
     bool is_cursor_at_begining(void);
     bool is_cursor_at_end(void);
+    void toggle_wrap_lines(void);
+    bool is_wrapping_lines(void) const;
     line_t& current_line(void);
     const line_t& current_line(void) const;
     const std::optional<Selection>& get_selection(void);
@@ -153,9 +157,11 @@ public:
     void clear_selection(void);
     void delete_selection(void);
     line_t copy_selection(void);
+    line_t cut_selection(void);
     // measures
     float measure_line_till_cursor(void);
-    void measure_lines_width(void);
+    void measure_lines(void);
+    void measure_line(Line& line);
     // draws
     void draw(void);
     void draw_vertical_scroll_bar(void);

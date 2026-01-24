@@ -24,6 +24,7 @@ void boot::EditorWindow::init(Game& game_state)
     m_text_buffer->set_bounds(buffer_bounds);
 
     m_text_buffer->set_font_size(30);
+    m_text_buffer->toggle_wrap_lines();
     // m_text_buffer->set_height(m_bounds.height);
     // m_text_buffer->set_width(m_bounds.width / 2);
     // m_text_buffer->set_position({ m_bounds.x, m_bounds.y });
@@ -48,8 +49,8 @@ void boot::EditorWindow::update(Game& game_state)
 {
     static bool cube_clicked = false;
     const auto mouse = GetMousePosition();
-    cube_clicked = (CheckCollisionPointRec(mouse, m_cube_bounds) && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-        || (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && cube_clicked);
+    cube_clicked = (CheckCollisionPointRec(mouse, m_cube_bounds) && IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+        || (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && cube_clicked);
     if (cube_clicked) {
         UpdateCamera(&m_camera, CAMERA_THIRD_PERSON);
     } else if (IsKeyPressed(KEY_ENTER) && AnySpecialDown(SHIFT)) {
@@ -112,10 +113,10 @@ void boot::EditorWindow::set_bounds(Rectangle r)
     boot::Window::set_bounds(r);
     if (m_text_buffer) {
         Rectangle buffer_bounds = {
-            .x = m_bounds.x + m_bounds.width * BUFFER_MARGIN,
-            .y = m_bounds.y + m_bounds.height * BUFFER_MARGIN,
-            .width = m_bounds.width - m_bounds.width * BUFFER_MARGIN,
-            .height = m_bounds.height - m_bounds.height * BUFFER_MARGIN,
+            .x = m_bounds.x + m_bounds.width / 2 * BUFFER_MARGIN,
+            .y = m_bounds.y + m_bounds.height / 2 * BUFFER_MARGIN,
+            .width = (m_bounds.width / 2) - (m_bounds.width * BUFFER_MARGIN),
+            .height = (m_bounds.height) - (m_bounds.height * BUFFER_MARGIN),
         };
         m_text_buffer->set_bounds(buffer_bounds);
     }
