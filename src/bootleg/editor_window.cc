@@ -24,7 +24,7 @@ void boot::EditorWindow::init(Game& game_state)
     m_text_buffer->set_bounds(buffer_bounds);
 
     m_text_buffer->set_font_size(30);
-    m_text_buffer->toggle_wrap_lines();
+    // m_text_buffer->toggle_wrap_lines();
     // m_text_buffer->set_height(m_bounds.height);
     // m_text_buffer->set_width(m_bounds.width / 2);
     // m_text_buffer->set_position({ m_bounds.x, m_bounds.y });

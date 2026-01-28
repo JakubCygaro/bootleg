@@ -104,10 +104,20 @@ bool TextBuffer::is_cursor_at_end(void)
 void TextBuffer::toggle_wrap_lines(void)
 {
     m_wrap_lines = !m_wrap_lines;
+    if (m_wrap_lines)
+        measure_lines();
 }
 bool TextBuffer::is_wrapping_lines(void) const
 {
     return m_wrap_lines;
+}
+void TextBuffer::toggle_readonly(void)
+{
+    m_readonly = !m_readonly;
+}
+bool TextBuffer::is_readonly(void) const
+{
+    return m_readonly;
 }
 TextBuffer::line_t& TextBuffer::current_line(void)
 {
@@ -409,6 +419,7 @@ bool TextBuffer::concat_backward(void)
         delete_line(m_cursor.line + 1);
         update_total_height();
         update_scroll_h();
+        measure_line(m_lines[m_cursor.line]);
         return true;
     }
     return false;
@@ -420,6 +431,7 @@ bool TextBuffer::concat_forward(void)
         delete_line(m_cursor.line + 1);
         update_total_height();
         update_scroll_h();
+        measure_line(m_lines[m_cursor.line]);
         return true;
     }
     return false;
@@ -436,6 +448,7 @@ void TextBuffer::delete_characters_back(unsigned long amount)
     current_line().erase(current_line().begin() + m_cursor.col, current_line().begin() + m_cursor.col + moved);
     update_total_height();
     update_scroll_h();
+    measure_line(m_lines[m_cursor.line]);
 }
 void TextBuffer::delete_characters_forward(unsigned long amount)
 {
@@ -451,6 +464,7 @@ void TextBuffer::delete_characters_forward(unsigned long amount)
     m_cursor.col = start_col;
     update_total_height();
     update_scroll_h();
+    measure_line(m_lines[m_cursor.line]);
 }
 void TextBuffer::delete_words_back(unsigned long amount)
 {
@@ -465,6 +479,7 @@ void TextBuffer::delete_words_back(unsigned long amount)
     update_total_height();
     update_scroll_v(0);
     update_scroll_h();
+    measure_line(m_lines[m_cursor.line]);
 }
 void TextBuffer::delete_words_forward(unsigned long amount)
 {
@@ -481,6 +496,7 @@ void TextBuffer::delete_words_forward(unsigned long amount)
     update_total_height();
     update_scroll_v(0);
     update_scroll_h();
+    measure_line(m_lines[m_cursor.line]);
 }
 void TextBuffer::insert_character(char_t c)
 {
@@ -593,7 +609,7 @@ void TextBuffer::measure_line(Line& line)
         int c = GetCodepoint((char*)&line.contents.data()[col], &csz);
         float glyph_width = get_glyph_width(m_font, c);
         auto tmp = glyph_width + m_glyph_spacing;
-        if(dims.x + tmp >= m_bounds.width){
+        if (dims.x + tmp >= m_bounds.width) {
             dims.y += f_line_advance;
             line.lines_when_wrapped++;
             width_max = std::max(width_max, dims.x);
@@ -627,20 +643,20 @@ void TextBuffer::draw(void)
             int csz = 1;
             int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
             const float glyph_width = get_glyph_width(m_font, c);
-            //wrap the line if it goes out of bounds
+            // wrap the line if it goes out of bounds
             if (m_wrap_lines && pos.x >= m_bounds.x + m_bounds.width - glyph_width) {
                 pos.x = m_bounds.x;
                 pos.y += f_line_advance;
                 skip_draws = false;
             }
-            if ((long)linen == m_cursor.line && (long)col == m_cursor.col && !skip_draws) {
+            if ((long)linen == m_cursor.line && (long)col == m_cursor.col && !skip_draws && !m_readonly) {
                 auto cursor_line = Rectangle {
                     .x = pos.x,
                     .y = pos.y,
                     .width = static_cast<float>(m_glyph_spacing),
                     .height = f_line_advance
                 };
-                DrawRectangleRec(cursor_line, WHITE);
+                DrawRectangleRec(cursor_line, foreground_color);
             }
             _cursor.col = col + 1;
             _cursor.line = linen;
@@ -659,7 +675,7 @@ void TextBuffer::draw(void)
             pos.x += glyph_width + m_glyph_spacing;
             col += csz;
         }
-        if (m_cursor.line == (long)linen && m_cursor.col == (long)current_line.contents.size()) {
+        if (m_cursor.line == (long)linen && m_cursor.col == (long)current_line.contents.size() && !m_readonly) {
             auto rect = Rectangle {
                 .x = pos.x,
                 .y = pos.y,
@@ -686,7 +702,11 @@ void TextBuffer::draw_vertical_scroll_bar(void)
 void TextBuffer::update_buffer_mouse(void)
 {
     const auto p = GetMousePosition();
-    if (!CheckCollisionPointRec(p, m_bounds))
+    const auto inbounds = CheckCollisionPointRec(p, m_bounds);
+    if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+        m_has_focus = inbounds;
+    }
+    if (inbounds || !m_has_focus)
         return;
     const auto point = (Vector2) {
         .x = p.x - m_bounds.x + (m_wrap_lines ? 0 : m_scroll_h),
@@ -723,6 +743,7 @@ void TextBuffer::update_buffer(void)
         start_selection();
 
     update_buffer_mouse();
+    if(!m_has_focus) return;
     const auto start_pos = m_cursor;
     if (IsKeyPressedOrRepeat(KEY_LEFT)) {
         if (AnySpecialDown(CONTROL)) {
@@ -774,7 +795,7 @@ void TextBuffer::update_buffer(void)
     if (IsKeyPressedOrRepeat(KEY_HOME)) {
         jump_cursor_to_start(shift_down);
     }
-    if (IsKeyPressedOrRepeat(KEY_BACKSPACE)) {
+    if (IsKeyPressedOrRepeat(KEY_BACKSPACE) && !m_readonly) {
         if (AnySpecialDown(CONTROL))
             delete_words_back();
         else if (get_selection().has_value())
@@ -782,24 +803,24 @@ void TextBuffer::update_buffer(void)
         else
             delete_characters_back();
     }
-    if (IsKeyPressedOrRepeat(KEY_DELETE)) {
+    if (IsKeyPressedOrRepeat(KEY_DELETE) && !m_readonly) {
         if (AnySpecialDown(CONTROL))
             delete_words_forward();
         else
             delete_characters_forward();
     }
-    if (IsKeyPressedOrRepeat(KEY_ENTER)) {
+    if (IsKeyPressedOrRepeat(KEY_ENTER) && !m_readonly) {
         insert_newline();
     }
-    if (IsKeyPressedOrRepeat(KEY_O) && AnySpecialDown(CONTROL)) {
+    if (IsKeyPressedOrRepeat(KEY_O) && AnySpecialDown(CONTROL) && !m_readonly) {
         insert_newline();
     }
-    if (IsKeyPressedOrRepeat(KEY_TAB)) {
+    if (IsKeyPressedOrRepeat(KEY_TAB) && !m_readonly) {
         for (auto i = 0; i < 4; i++) {
             insert_character(' ');
         }
     }
-    if (IsKeyPressedOrRepeat(KEY_V) && AnySpecialDown(CONTROL)) {
+    if (IsKeyPressedOrRepeat(KEY_V) && AnySpecialDown(CONTROL) && !m_readonly) {
         const char* clipboard = GetClipboardText();
         TextBuffer::line_t line {};
         for (size_t i = 0; clipboard[i] != '\0'; i++) {
@@ -839,7 +860,7 @@ void TextBuffer::update_buffer(void)
     }
     static unsigned char utfbuf[4] = { 0 };
     int c = 0;
-    while ((c = GetCharPressed())) {
+    while ((c = GetCharPressed()) && !m_readonly) {
         if (get_selection().has_value()) {
             delete_selection();
             clear_selection();
@@ -884,16 +905,12 @@ void TextBuffer::clamp_cursor(void)
 }
 std::optional<TextBuffer::Cursor> TextBuffer::mouse_as_cursor_position(Vector2 point)
 {
-    // measure_lines();
-    std::println("{{ x: {}, y: {} }}", point.x, point.y);
-    std::println("f_line_advance: {}", f_line_advance);
     if (point.x < 0 || point.x > m_bounds.width + m_scroll_h || point.y < 0 || point.y > m_bounds.height + m_scroll_v)
         return std::nullopt;
     long linenum = 0;
     if (m_wrap_lines) {
         auto last_line_end = -m_scroll_v;
         for (auto i = 0; i < (long)get_line_count(); i++) {
-            std::println("lines_when_wrapped: {}", m_lines[i].lines_when_wrapped);
             auto this_line_end = last_line_end + (m_lines[i].lines_when_wrapped * f_line_advance);
             if (point.y <= this_line_end) {
                 break;
@@ -903,9 +920,6 @@ std::optional<TextBuffer::Cursor> TextBuffer::mouse_as_cursor_position(Vector2 p
         }
         linenum = linenum >= (int)get_line_count() ? get_line_count() - 1 : linenum;
         int y_in_line = (point.y - last_line_end) / f_line_advance;
-        std::println("point.y : {}, last_line_end : {}", point.y, last_line_end);
-        std::println("y_in_line : {}", y_in_line);
-        std::println("linenum : {}", linenum);
         point.y = y_in_line;
     } else {
         linenum = point.y == 0 ? 0 : (long)(point.y / f_line_advance) % get_line_count();

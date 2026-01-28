@@ -84,6 +84,8 @@ private:
     float f_total_width;
 
     bool m_wrap_lines = false;
+    bool m_readonly = false;
+    bool m_has_focus = false;
 
 public:
     Color foreground_color = WHITE;
@@ -112,6 +114,8 @@ public:
     bool is_cursor_at_end(void);
     void toggle_wrap_lines(void);
     bool is_wrapping_lines(void) const;
+    void toggle_readonly(void);
+    bool is_readonly(void) const;
     line_t& current_line(void);
     const line_t& current_line(void) const;
     const std::optional<Selection>& get_selection(void);
