@@ -647,12 +647,12 @@ void TextBuffer::draw(void)
     for (std::size_t linen = 0; linen < get_line_count(); linen++) {
         auto& current_line = m_lines[linen];
         for (size_t col = 0; col < current_line.contents.size();) {
-            bool skip_draws = !CheckCollisionPointRec(pos, m_bounds);
             int csz = 1;
             int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
             const float glyph_width = get_glyph_width(m_font, c);
+            bool skip_draws = !CheckCollisionPointRec({pos.x + glyph_width, pos.y}, m_bounds);
             // wrap the line if it goes out of bounds
-            if (m_wrap_lines && pos.x >= m_bounds.x + m_bounds.width - glyph_width) {
+            if (m_wrap_lines && skip_draws) {
                 pos.x = m_bounds.x;
                 pos.y += f_line_advance;
                 skip_draws = false;
@@ -714,7 +714,7 @@ void TextBuffer::update_buffer_mouse(void)
     if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
         m_has_focus = inbounds;
     }
-    if (inbounds || !m_has_focus)
+    if (!inbounds || !m_has_focus)
         return;
     const auto point = (Vector2) {
         .x = p.x - m_bounds.x + (m_wrap_lines ? 0 : m_scroll_h),
@@ -751,8 +751,8 @@ void TextBuffer::update_buffer(void)
         start_selection();
 
     update_buffer_mouse();
-    if(!m_has_focus) return;
     const auto start_pos = m_cursor;
+    if(!m_has_focus) return;
     if (IsKeyPressedOrRepeat(KEY_LEFT)) {
         if (AnySpecialDown(CONTROL)) {
             move_cursor_word(-1, shift_down);
@@ -817,7 +817,7 @@ void TextBuffer::update_buffer(void)
         else
             delete_characters_forward();
     }
-    if (IsKeyPressedOrRepeat(KEY_KP_ENTER) && IsKeyPressedOrRepeat(KEY_ENTER) && !m_readonly) {
+    if ((IsKeyPressedOrRepeat(KEY_KP_ENTER) || IsKeyPressedOrRepeat(KEY_ENTER)) && !m_readonly) {
         insert_newline();
     }
     if (IsKeyPressedOrRepeat(KEY_O) && AnySpecialDown(CONTROL) && !m_readonly) {

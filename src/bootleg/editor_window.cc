@@ -75,6 +75,7 @@ void boot::EditorWindow::update(Game& game_state)
     } else {
         this->m_text_buffer->update_buffer();
     }
+    this->m_output_buffer->update_buffer();
 }
 void boot::EditorWindow::draw(Game& game_state)
 {
