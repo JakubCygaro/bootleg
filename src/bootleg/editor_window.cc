@@ -37,10 +37,12 @@ void boot::EditorWindow::update_bounds(void)
 void boot::EditorWindow::init(Game& game_state)
 {
     m_text_buffer = std::make_unique<bed::TextBuffer>(game_state.m_font, Rectangle {});
-    m_text_buffer->insert_string("Color = BLUE");
     m_output_buffer = std::make_unique<bed::TextBuffer>(game_state.m_font, Rectangle {});
 
+    m_text_buffer->insert_string("Color = BLUE");
     m_text_buffer->set_font_size(30);
+    m_text_buffer->background_color = { 0x1f, 0x1f, 0x1f, 255 };
+
     m_output_buffer->set_font_size(30);
     m_output_buffer->toggle_wrap_lines();
     m_output_buffer->toggle_readonly();
