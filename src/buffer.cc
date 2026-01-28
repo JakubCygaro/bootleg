@@ -1,5 +1,6 @@
 #include "buffer.hpp"
 #include <cmath>
+#include <print>
 
 namespace bed {
 
@@ -44,8 +45,9 @@ float TextBuffer::get_width() const
 }
 void TextBuffer::set_width(float w)
 {
-    m_bounds.width = w;
-    update_viewport_to_cursor();
+    auto b = m_bounds;
+    b.width = w;
+    set_bounds(b);
 }
 float TextBuffer::get_height() const
 {
@@ -53,9 +55,9 @@ float TextBuffer::get_height() const
 }
 void TextBuffer::set_height(float h)
 {
-    m_bounds.height = h;
-    update_viewport_to_cursor();
-    update_total_height();
+    auto b = m_bounds;
+    b.height = h;
+    set_bounds(b);
 }
 Rectangle TextBuffer::get_bounds() const
 {
@@ -66,6 +68,7 @@ void TextBuffer::set_bounds(Rectangle b)
     m_bounds = b;
     update_viewport_to_cursor();
     update_total_height();
+    measure_lines();
 }
 Vector2 TextBuffer::get_position() const
 {
@@ -73,10 +76,10 @@ Vector2 TextBuffer::get_position() const
 }
 void TextBuffer::set_position(Vector2 p)
 {
-    m_bounds.x = p.x;
-    m_bounds.y = p.y;
-    update_total_height();
-    update_viewport_to_cursor();
+    auto b = m_bounds;
+    b.x = p.x;
+    b.y = p.y;
+    set_bounds(b);
 }
 void TextBuffer::increase_font_size()
 {
@@ -485,6 +488,7 @@ void TextBuffer::insert_character(char_t c)
     std::shift_right(current_line().begin() + m_cursor.col, current_line().end(), 1);
     current_line()[m_cursor.col++] = static_cast<char_t>(c);
     update_scroll_h();
+    measure_line(m_lines[m_cursor.line]);
 }
 void TextBuffer::insert_string(line_t&& str)
 {
@@ -493,6 +497,7 @@ void TextBuffer::insert_string(line_t&& str)
     m_cursor.col += len;
     update_total_height();
     update_viewport_to_cursor();
+    measure_line(m_lines[m_cursor.line]);
 }
 void TextBuffer::jump_cursor_to_top(bool with_selection)
 {
@@ -531,11 +536,13 @@ void TextBuffer::insert_newline(void)
         next_line.resize(current_line().size() - m_cursor.col);
         std::copy(current_line().begin() + m_cursor.col, current_line().end(), next_line.begin());
         current_line().erase(current_line().begin() + m_cursor.col, current_line().end());
+        measure_line(m_lines[m_cursor.line]);
     }
     m_cursor.line++;
     m_cursor.col = 0;
     update_total_height();
     update_viewport_to_cursor();
+    measure_line(m_lines[m_cursor.line]);
 }
 /// this function ensures that the viewport contains the cursor (the cursor is visible on the screen)
 void TextBuffer::update_viewport_to_cursor(void)
@@ -554,6 +561,14 @@ void TextBuffer::clear_selection(void)
 {
     m_selection = std::nullopt;
 }
+float TextBuffer::get_glyph_width(const Font& font, int codepoint) const
+{
+    int idx = GetGlyphIndex(font, codepoint);
+    float glyph_width = (font.glyphs[idx].advanceX == 0)
+        ? m_font.recs[idx].width * f_scale_factor
+        : m_font.glyphs[idx].advanceX * f_scale_factor;
+    return glyph_width;
+}
 float TextBuffer::measure_line_till_cursor(void)
 {
     if (current_line().size() == 0)
@@ -562,10 +577,7 @@ float TextBuffer::measure_line_till_cursor(void)
     for (long col = 0; col <= m_cursor.col;) {
         int csz = 1;
         int c = GetCodepoint(&current_line().data()[col], &csz);
-        int idx = GetGlyphIndex(m_font, c);
-        float glyph_width = (m_font.glyphs[idx].advanceX == 0)
-            ? m_font.recs[idx].width * f_scale_factor
-            : m_font.glyphs[idx].advanceX * f_scale_factor;
+        float glyph_width = get_glyph_width(m_font, c);
         advance += glyph_width + m_glyph_spacing;
         col += csz;
     }
@@ -573,8 +585,24 @@ float TextBuffer::measure_line_till_cursor(void)
 }
 void TextBuffer::measure_line(Line& line)
 {
-    auto dims = MeasureTextEx(m_font, line.contents.data(), m_font_size, m_spacing + m_glyph_spacing);
-    dims.y = (static_cast<int>(dims.x / f_line_advance) + 1) * f_line_advance;
+    Vector2 dims = {};
+    float width_max = 0.0;
+    line.lines_when_wrapped = 1;
+    for (long col = 0; col < (long)line.contents.size();) {
+        int csz = 1;
+        int c = GetCodepoint((char*)&line.contents.data()[col], &csz);
+        float glyph_width = get_glyph_width(m_font, c);
+        auto tmp = glyph_width + m_glyph_spacing;
+        if(dims.x + tmp >= m_bounds.width){
+            dims.y += f_line_advance;
+            line.lines_when_wrapped++;
+            width_max = std::max(width_max, dims.x);
+            dims.x = 0.0;
+        }
+        dims.x += tmp;
+        col += csz;
+    }
+    dims.x = width_max;
     line.dims = dims;
 }
 void TextBuffer::measure_lines(void)
@@ -598,8 +626,8 @@ void TextBuffer::draw(void)
             bool skip_draws = !CheckCollisionPointRec(pos, m_bounds);
             int csz = 1;
             int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
-            int idx = GetGlyphIndex(m_font, c);
-            const float glyph_width = (m_font.glyphs[idx].advanceX == 0) ? m_font.recs[idx].width * f_scale_factor : m_font.glyphs[idx].advanceX * f_scale_factor;
+            const float glyph_width = get_glyph_width(m_font, c);
+            //wrap the line if it goes out of bounds
             if (m_wrap_lines && pos.x >= m_bounds.x + m_bounds.width - glyph_width) {
                 pos.x = m_bounds.x;
                 pos.y += f_line_advance;
@@ -655,37 +683,22 @@ void TextBuffer::draw_vertical_scroll_bar(void)
     };
     DrawRectangleRec(rec, WHITE);
 }
-// void update_vertical_scroll_bar(Vector2 p)
-// {
-//     const auto point = (Vector2) {
-//         .x = p.x - m_bounds.x,
-//         .y = p.y - m_bounds.y + m_scroll_v,
-//     };
-//     const auto drawn = m_bounds.height / f_total_height;
-//     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-//     }
-// }
 void TextBuffer::update_buffer_mouse(void)
 {
     const auto p = GetMousePosition();
+    if (!CheckCollisionPointRec(p, m_bounds))
+        return;
     const auto point = (Vector2) {
-        .x = p.x - m_bounds.x + m_scroll_h,
+        .x = p.x - m_bounds.x + (m_wrap_lines ? 0 : m_scroll_h),
         .y = p.y - m_bounds.y + m_scroll_v,
     };
-    // if (CheckCollisionPointRec(point,
-    //         { .x = m_bounds.width - m_v_scroll_bar_width,
-    //             .y = 0,
-    //             .width = m_v_scroll_bar_width,
-    //             .height = m_bounds.height })) {
-    //     update_vertical_scroll_bar(point);
-    //     return;
-    // }
-    auto c = mouse_as_cursor_position(point);
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        auto c = mouse_as_cursor_position(point);
         clear_selection();
         m_cursor = c.has_value() ? *c : m_cursor;
     }
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        auto c = mouse_as_cursor_position(point);
         if (!get_selection()) {
             start_selection();
         } else {
@@ -869,29 +882,54 @@ void TextBuffer::clamp_cursor(void)
     m_cursor.line = std::clamp(m_cursor.line, (long)0, (long)m_lines.size() - 1);
     m_cursor.col = std::clamp(m_cursor.col, (long)0, (long)current_line().size());
 }
-std::optional<TextBuffer::Cursor> TextBuffer::mouse_as_cursor_position(const Vector2 point)
+std::optional<TextBuffer::Cursor> TextBuffer::mouse_as_cursor_position(Vector2 point)
 {
+    // measure_lines();
+    std::println("{{ x: {}, y: {} }}", point.x, point.y);
+    std::println("f_line_advance: {}", f_line_advance);
     if (point.x < 0 || point.x > m_bounds.width + m_scroll_h || point.y < 0 || point.y > m_bounds.height + m_scroll_v)
         return std::nullopt;
-    long linen = point.y == 0 ? 0 : (long)(point.y / f_line_advance) % get_line_count();
-    auto& line = m_lines[linen];
+    long linenum = 0;
+    if (m_wrap_lines) {
+        auto last_line_end = -m_scroll_v;
+        for (auto i = 0; i < (long)get_line_count(); i++) {
+            std::println("lines_when_wrapped: {}", m_lines[i].lines_when_wrapped);
+            auto this_line_end = last_line_end + (m_lines[i].lines_when_wrapped * f_line_advance);
+            if (point.y <= this_line_end) {
+                break;
+            }
+            last_line_end = this_line_end;
+            linenum++;
+        }
+        linenum = linenum >= (int)get_line_count() ? get_line_count() - 1 : linenum;
+        int y_in_line = (point.y - last_line_end) / f_line_advance;
+        std::println("point.y : {}, last_line_end : {}", point.y, last_line_end);
+        std::println("y_in_line : {}", y_in_line);
+        std::println("linenum : {}", linenum);
+        point.y = y_in_line;
+    } else {
+        linenum = point.y == 0 ? 0 : (long)(point.y / f_line_advance) % get_line_count();
+    }
+    auto& line = m_lines[linenum];
     if (line.contents.size() == 0)
-        return TextBuffer::Cursor { .line = linen, .col = 0 };
+        return TextBuffer::Cursor { .line = linenum, .col = 0 };
     float advance = 0;
-    // if(m_wrap_lines)
-    //     measure_lines_width();
+    int line_in_line = 0;
     for (long col = 0; col < (long)line.contents.size();) {
         int csz = 1;
         int c = GetCodepoint((char*)&line.contents.data()[col], &csz);
-        int idx = GetGlyphIndex(m_font, c);
-        float glyph_width = (m_font.glyphs[idx].advanceX == 0) ? m_font.recs[idx].width * f_scale_factor : m_font.glyphs[idx].advanceX * f_scale_factor;
-        // auto r = GetGlyphAtlasRec(font, idx);
-        if (point.x >= advance && point.x <= advance + glyph_width + m_glyph_spacing)
-            return TextBuffer::Cursor { .line = linen, .col = col };
+        float glyph_width = get_glyph_width(m_font, c);
+        auto is_in_line_with_wrapping = m_wrap_lines ? (line_in_line == point.y) : true;
+        if (point.x >= advance && point.x <= advance + glyph_width + m_glyph_spacing && is_in_line_with_wrapping)
+            return TextBuffer::Cursor { .line = linenum, .col = col };
         advance += glyph_width + m_glyph_spacing;
         col += csz;
+        if (advance >= m_bounds.width - glyph_width && m_wrap_lines) {
+            advance = 0.0;
+            line_in_line++;
+        }
     }
-    return TextBuffer::Cursor { .line = linen, .col = (long)line.contents.size() };
+    return TextBuffer::Cursor { .line = linenum, .col = (long)line.contents.size() };
 }
 void TextBuffer::update_scroll_v(float v)
 {

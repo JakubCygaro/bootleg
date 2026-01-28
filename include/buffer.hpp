@@ -22,6 +22,7 @@ struct TextBuffer {
     struct Line {
         line_t contents {};
         std::optional<Vector2> dims {};
+        int lines_when_wrapped = 1;
     };
     struct Cursor {
         long line {};
@@ -173,13 +174,14 @@ public:
     void update_viewport_to_cursor(void);
 
 private:
-    std::optional<TextBuffer::Cursor> mouse_as_cursor_position(const Vector2 point);
+    std::optional<TextBuffer::Cursor> mouse_as_cursor_position(Vector2 point);
     void clamp_cursor(void);
     void update_scroll_h(void);
     void update_total_height(void);
     void update_font_measurements(void);
     void update_selection(void);
     void update_scroll_v(float v);
+    float get_glyph_width(const Font& font, int codepoint) const;
 };
 }
 
