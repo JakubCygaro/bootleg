@@ -10,36 +10,49 @@ constexpr const float BUFFER_MARGIN = .05;
 boot::EditorWindow::EditorWindow()
 {
 }
+void boot::EditorWindow::update_bounds(void)
+{
+    m_cube_bounds = {
+        .x = m_bounds.x + this->m_bounds.width / 2,
+        .y = m_bounds.y + m_bounds.height / 2 * BUFFER_MARGIN,
+        .width = (this->m_bounds.width / 2) - (m_bounds.width / 2 * BUFFER_MARGIN),
+        .height = this->m_bounds.height / 2,
+    };
+    if (m_text_buffer) {
+        Rectangle buffer_bounds = {
+            .x = m_bounds.x + m_bounds.width / 2 * BUFFER_MARGIN,
+            .y = m_bounds.y + m_bounds.height / 2 * BUFFER_MARGIN,
+            .width = (m_bounds.width / 2) - (m_bounds.width * BUFFER_MARGIN),
+            .height = (m_bounds.height) - (m_bounds.height * BUFFER_MARGIN),
+        };
+        m_text_buffer->set_bounds(buffer_bounds);
+    }
+    if (m_output_buffer) {
+        Rectangle buffer_bounds = m_cube_bounds;
+        buffer_bounds.y += m_bounds.height / 2 + (m_bounds.height / 2 * BUFFER_MARGIN);
+        buffer_bounds.height = (m_bounds.height - buffer_bounds.y);// - (m_bounds.height / 2 * BUFFER_MARGIN );
+        m_output_buffer->set_bounds(buffer_bounds);
+    }
+}
 void boot::EditorWindow::init(Game& game_state)
 {
     m_text_buffer = std::make_unique<bed::TextBuffer>(game_state.m_font, Rectangle {});
     m_text_buffer->insert_string("Color = BLUE");
-
-    Rectangle buffer_bounds = {
-        .x = m_bounds.x + m_bounds.width / 2 * BUFFER_MARGIN,
-        .y = m_bounds.y + m_bounds.height / 2 * BUFFER_MARGIN,
-        .width = (m_bounds.width / 2) - (m_bounds.width * BUFFER_MARGIN),
-        .height = (m_bounds.height) - (m_bounds.height * BUFFER_MARGIN),
-    };
-    m_text_buffer->set_bounds(buffer_bounds);
+    m_output_buffer = std::make_unique<bed::TextBuffer>(game_state.m_font, Rectangle {});
 
     m_text_buffer->set_font_size(30);
-    // m_text_buffer->toggle_wrap_lines();
-    // m_text_buffer->set_height(m_bounds.height);
-    // m_text_buffer->set_width(m_bounds.width / 2);
-    // m_text_buffer->set_position({ m_bounds.x, m_bounds.y });
+    m_output_buffer->set_font_size(30);
+    m_output_buffer->toggle_wrap_lines();
+    m_output_buffer->toggle_readonly();
+    m_output_buffer->background_color = { 0x1f, 0x1f, 0x1f, 255 };
     m_camera.position = (Vector3) { 20.0f, 10.0f, 0.0f };
     m_camera.target = { 0, 0, 0 };
     m_camera.up = (Vector3) { 0.0f, 1.0f, 0.0 };
     m_camera.fovy = 90.0f;
     m_camera.projection = CAMERA_PERSPECTIVE;
     m_render_tex = LoadRenderTexture(m_render_tex_dims.x, m_render_tex_dims.y);
-    m_cube_bounds = {
-        .x = m_bounds.x + this->m_bounds.width / 2,
-        .y = m_bounds.y,
-        .width = this->m_bounds.width / 2,
-        .height = this->m_bounds.height / 2,
-    };
+    SetTextureFilter(m_render_tex.texture, TEXTURE_FILTER_ANISOTROPIC_4X);
+    update_bounds();
 }
 boot::EditorWindow::~EditorWindow()
 {
@@ -54,21 +67,20 @@ void boot::EditorWindow::update(Game& game_state)
     if (cube_clicked) {
         UpdateCamera(&m_camera, CAMERA_THIRD_PERSON);
     } else if (IsKeyPressed(KEY_ENTER) && AnySpecialDown(SHIFT)) {
-        game_state.load_source(m_text_buffer->get_contents_as_string());
+        m_output_buffer->clear();
+        if(auto err = game_state.load_source(m_text_buffer->get_contents_as_string()); err){
+            auto errstr = *err;
+            m_output_buffer->insert_string(std::move(errstr));
+        }
     } else {
         this->m_text_buffer->update_buffer();
     }
 }
 void boot::EditorWindow::draw(Game& game_state)
 {
-    Rectangle buffer_bounds = {
-        .x = m_bounds.x,
-        .y = m_bounds.y,
-        .width = (m_bounds.width / 2),
-        .height = (m_bounds.height),
-    };
-    DrawRectangleGradientEx(buffer_bounds, RED, BLUE, RED, BLUE);
+    DrawRectangleGradientEx(m_bounds, RED, BLUE, RED, BLUE);
     this->m_text_buffer->draw();
+    this->m_output_buffer->draw();
     BeginTextureMode(m_render_tex);
     ClearBackground(WHITE);
     BeginMode3D(m_camera);
@@ -94,13 +106,13 @@ void boot::EditorWindow::draw(Game& game_state)
         .x = 0,
         .y = 0,
         .width = m_render_tex_dims.x,
-        .height = m_render_tex_dims.y,
+        .height = -m_render_tex_dims.y,
     };
     DrawTexturePro(m_render_tex.texture,
         src,
         m_cube_bounds,
-        { this->m_bounds.width / 2, this->m_bounds.height / 2 },
-        180.0,
+        Vector2Zero(),
+        0,
         WHITE);
 }
 const char* boot::EditorWindow::get_window_name()
@@ -111,19 +123,5 @@ const char* boot::EditorWindow::get_window_name()
 void boot::EditorWindow::set_bounds(Rectangle r)
 {
     boot::Window::set_bounds(r);
-    if (m_text_buffer) {
-        Rectangle buffer_bounds = {
-            .x = m_bounds.x + m_bounds.width / 2 * BUFFER_MARGIN,
-            .y = m_bounds.y + m_bounds.height / 2 * BUFFER_MARGIN,
-            .width = (m_bounds.width / 2) - (m_bounds.width * BUFFER_MARGIN),
-            .height = (m_bounds.height) - (m_bounds.height * BUFFER_MARGIN),
-        };
-        m_text_buffer->set_bounds(buffer_bounds);
-    }
-    m_cube_bounds = {
-        .x = m_bounds.x + this->m_bounds.width / 2,
-        .y = m_bounds.y,
-        .width = this->m_bounds.width / 2,
-        .height = this->m_bounds.height / 2,
-    };
+    update_bounds();
 }

@@ -410,6 +410,14 @@ void TextBuffer::delete_lines(size_t start, size_t end)
     update_total_height();
     update_viewport_to_cursor();
 }
+void TextBuffer::clear(void){
+    m_lines.clear();
+    m_lines.push_back({});
+    m_cursor = {};
+    measure_lines();
+    update_total_height();
+    update_viewport_to_cursor();
+}
 bool TextBuffer::concat_backward(void)
 {
     if (m_cursor.line > 0) {
@@ -809,7 +817,7 @@ void TextBuffer::update_buffer(void)
         else
             delete_characters_forward();
     }
-    if (IsKeyPressedOrRepeat(KEY_ENTER) && !m_readonly) {
+    if (IsKeyPressedOrRepeat(KEY_KP_ENTER) && IsKeyPressedOrRepeat(KEY_ENTER) && !m_readonly) {
         insert_newline();
     }
     if (IsKeyPressedOrRepeat(KEY_O) && AnySpecialDown(CONTROL) && !m_readonly) {

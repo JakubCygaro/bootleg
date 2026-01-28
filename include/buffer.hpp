@@ -148,6 +148,7 @@ public:
     void delete_words_forward(unsigned long amount = 1);
     void delete_line(size_t line_num);
     void delete_lines(size_t start, size_t end);
+    void clear(void);
     // jumps
     void jump_cursor_to_top(bool with_selection = false);
     void jump_cursor_to_bottom(bool with_selection = false);

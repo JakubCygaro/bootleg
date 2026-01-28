@@ -84,7 +84,7 @@ public:
     void deinit();
     void update();
     void draw();
-    void load_source(const std::string&);
+    std::optional<std::string> load_source(const std::string&);
     Color color_for(int x, int y, int z);
 
 private:
@@ -92,6 +92,7 @@ private:
 };
 class EditorWindow final : public Window {
     std::unique_ptr<bed::TextBuffer> m_text_buffer;
+    std::unique_ptr<bed::TextBuffer> m_output_buffer;
     Camera3D m_camera = {};
     RenderTexture2D m_render_tex = {};
     Vector2 m_render_tex_dims = { 800, 800 };
@@ -105,6 +106,8 @@ public:
     virtual const char* get_window_name() override;
     virtual void set_bounds(Rectangle r) override;
     virtual ~EditorWindow();
+private:
+    void update_bounds(void);
 };
 }
 #endif

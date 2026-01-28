@@ -121,7 +121,7 @@ static Color decode_color_from_hex(unsigned int hex_color){
     ret.r |= hex_color;
     return ret;
 }
-void boot::Game::load_source(const std::string& source)
+std::optional<std::string> boot::Game::load_source(const std::string& source)
 {
     for (int x = 0; x < cube.x; x++) {
         for (int y = 0; y < cube.y; y++) {
@@ -135,9 +135,10 @@ void boot::Game::load_source(const std::string& source)
                 lua_pushinteger(m_lua_state, z);
                 lua_setglobal(m_lua_state, "z");
                 if(luaL_dostring(m_lua_state, source.data())){
+                    auto* err = lua_tostring(m_lua_state, -1);
                     std::printf("pcall failed : %s\n",
-                            lua_tostring(m_lua_state, -1));
-                    return;
+                            err);
+                    return err;
                 }
                 lua_getglobal(m_lua_state, "Color");
                 unsigned int c = lua_tointeger(m_lua_state, -1);
@@ -146,6 +147,7 @@ void boot::Game::load_source(const std::string& source)
             }
         }
     }
+    return std::nullopt;
 }
 Color boot::Game::color_for(int x, int y, int z)
 {
