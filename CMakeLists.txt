@@ -4,9 +4,29 @@ project(Bootleg VERSION 0.0)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
 
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_library(cppfeatures INTERFACE)
+
+include(FetchContent)
+#Commands are left empty so that we only checkout the source and no not perform any kind of build
+FetchContent_Declare(gitmeu3
+    GIT_REPOSITORY "https://github.com/JakubCygaro/meurglys3.git"
+    GIT_TAG 9654c061fffcc3fba5ac360aa2be3493ae1e7913
+)
+FetchContent_MakeAvailable(gitmeu3)
+
+add_library(meu3 INTERFACE IMPORTED)
+set_target_properties(
+    meu3
+    PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${meu3IncludeDirs}"
+    INTERFACE_LINK_LIBRARIES "${meu3StaticLibs}"
+    INTERFACE_LINK_LIBRARIES "${meu3LinkLibs}"
+)
+include_directories(
+    ${meu3IncludeDirs}
+)
 
 find_package(Lua)
 
@@ -63,6 +83,7 @@ target_link_libraries(bootleg
     PRIVATE bedl
     PRIVATE cppfeatures
     PRIVATE raylib
+    PRIVATE Lua::Lua
     PRIVATE Lua::Lua
 )
 

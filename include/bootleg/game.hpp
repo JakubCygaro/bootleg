@@ -11,6 +11,7 @@ extern "C" {
 #include <memory>
 #include <raylib.h>
 #include <vector>
+#include "meu3.h"
 
 #ifndef STRINGIFY
 #define STRINGIFY(TOKEN) #TOKEN
