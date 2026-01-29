@@ -1,6 +1,7 @@
 #ifndef BOOT_GAME_HPP
 #define BOOT_GAME_HPP
 #include <buffer.hpp>
+#include <cstddef>
 #ifdef __cplusplus
 extern "C" {
 #include <lauxlib.h>
@@ -29,6 +30,15 @@ namespace colors {
 }
 class Game;
 
+struct Level {
+    MEU3_BYTES data_ptr{};
+    unsigned long long data_len{};
+    enum struct Type {
+        Lua,
+        Raw
+    };
+    Type ty;
+};
 struct Window {
 protected:
     Rectangle m_bounds {};
@@ -69,23 +79,36 @@ struct CubeData {
 };
 
 class Game {
+public:
+    struct WindowData;
+private:
     Vector2 m_dims {};
     lua_State* m_lua_state {};
+    WindowData* m_current_window{};
 
 public:
-    Font m_font;
+    Font font;
     CubeData cube {};
+    std::optional<CubeData> solution {};
+    MEU3_PACKAGE* meu3_pack {};
+    std::vector<Level> levels{};
     inline Game(float w, float h)
         : m_dims(w, h)
     {
     }
+    struct WindowData {
+        std::unique_ptr<Window> win{};
+        Rectangle name_bounds{};
+    };
     // windows? I'm gonna puke
-    std::vector<std::unique_ptr<Window>> windows {};
+    std::vector<WindowData> windows {};
     void init();
     void deinit();
     void update();
     void draw();
+    void update_measurements(void);
     std::optional<std::string> load_source(const std::string&);
+    void load_level_solution(const Level& lvl);
     Color color_for(int x, int y, int z);
 
 private:
@@ -109,6 +132,17 @@ public:
     virtual ~EditorWindow();
 private:
     void update_bounds(void);
+};
+class LevelSelectWindow final : public Window {
+    
+public:
+    explicit LevelSelectWindow();
+    virtual void init(Game& game_state) override;
+    virtual void update(Game& game_state) override;
+    virtual void draw(Game& game_state) override;
+    virtual const char* get_window_name() override;
+    // virtual void set_bounds(Rectangle r) override;
+    virtual ~LevelSelectWindow();
 };
 }
 #endif

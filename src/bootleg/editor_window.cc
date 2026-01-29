@@ -30,14 +30,14 @@ void boot::EditorWindow::update_bounds(void)
     if (m_output_buffer) {
         Rectangle buffer_bounds = m_cube_bounds;
         buffer_bounds.y += m_bounds.height / 2 + (m_bounds.height / 2 * BUFFER_MARGIN);
-        buffer_bounds.height = (m_bounds.height - buffer_bounds.y);// - (m_bounds.height / 2 * BUFFER_MARGIN );
+        buffer_bounds.height = (m_bounds.height - buffer_bounds.y); // - (m_bounds.height / 2 * BUFFER_MARGIN );
         m_output_buffer->set_bounds(buffer_bounds);
     }
 }
 void boot::EditorWindow::init(Game& game_state)
 {
-    m_text_buffer = std::make_unique<bed::TextBuffer>(game_state.m_font, Rectangle {});
-    m_output_buffer = std::make_unique<bed::TextBuffer>(game_state.m_font, Rectangle {});
+    m_text_buffer = std::make_unique<bed::TextBuffer>(game_state.font, Rectangle {});
+    m_output_buffer = std::make_unique<bed::TextBuffer>(game_state.font, Rectangle {});
 
     m_text_buffer->insert_string("Color = BLUE");
     m_text_buffer->set_font_size(30);
@@ -70,7 +70,7 @@ void boot::EditorWindow::update(Game& game_state)
         UpdateCamera(&m_camera, CAMERA_THIRD_PERSON);
     } else if (IsKeyPressed(KEY_ENTER) && AnySpecialDown(SHIFT)) {
         m_output_buffer->clear();
-        if(auto err = game_state.load_source(m_text_buffer->get_contents_as_string()); err){
+        if (auto err = game_state.load_source(m_text_buffer->get_contents_as_string()); err) {
             auto errstr = *err;
             m_output_buffer->insert_string(std::move(errstr));
         }
@@ -92,17 +92,28 @@ void boot::EditorWindow::draw(Game& game_state)
     for (int x = -(cube.x / 2); x < (cube.x / 2); x++) {
         for (int y = brick_width / 2; y < brick_width + cube.y; y++) {
             for (int z = -(cube.z / 2); z < (cube.z / 2); z++) {
+                auto nx = x + (cube.x / 2);
+                auto ny = y - brick_width / 2;
+                auto nz = z + cube.z / 2;
                 Color c = game_state.color_for(
-                    x + (cube.x / 2),
-                    y - brick_width / 2,
-                    z + cube.z / 2);
+                    nx,
+                    ny,
+                    nz);
                 Vector3 pos = (Vector3) { (float)x, (float)y, (float)z };
                 if (c.a == 255)
                     DrawCube(pos, brick_width, brick_width, brick_width, c);
+                else if(game_state.solution){
+                    const auto scolor = game_state.solution->color_data[nx][ny][nz];
+                    DrawCube(pos, brick_width, brick_width, brick_width, { scolor.r, scolor.g, scolor.b, 80 });
+                }
             }
         }
     }
     DrawGrid(5, 5);
+    const Vector3 axis_center = { -2 * 5., 0, -2 * 5. };
+    DrawLine3D(axis_center, Vector3Add(axis_center, { 20, 0, 0 }), RED);
+    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 20, 0 }), GREEN);
+    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 0, 20 }), BLUE);
     EndMode3D();
     EndTextureMode();
     Rectangle src = {

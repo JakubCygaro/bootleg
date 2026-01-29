@@ -1,7 +1,11 @@
+#include "meu3.h"
 #include <bootleg/game.hpp>
 #include <cstdio>
+#include <format>
+#include <optional>
 #include <print>
 #include <raylib.h>
+#include <stdexcept>
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,13 +16,20 @@ extern "C" {
 #endif
 
 constexpr const float WINDOW_BAR_HEIGHT = 1. / 30.;
+constexpr const float WINDOW_NAME_FONT_SPACING = 10;
 constexpr const int CUBE_DIMS = 10;
+constexpr const std::string GAME_DATA_PATH = "gamedata.m3pkg";
 
 void boot::Game::init()
 {
-    m_font = GetFontDefault();
+    font = GetFontDefault();
     cube = { CUBE_DIMS, CUBE_DIMS, CUBE_DIMS };
     init_lua_state();
+    MEU3_Error err = NoError;
+    meu3_pack = meu3_load_package(GAME_DATA_PATH.data(), &err);
+    if (err != NoError) {
+        throw std::runtime_error(std::format("Failed to load gamedata meu3 package at `{}`, error code {}", GAME_DATA_PATH, (int)err));
+    }
     const auto window_bar_h = WINDOW_BAR_HEIGHT * m_dims.y;
     auto w = std::make_unique<boot::EditorWindow>();
     w->set_bounds({
@@ -27,13 +38,26 @@ void boot::Game::init()
         .width = m_dims.x,
         .height = m_dims.y - window_bar_h,
     });
-    this->windows.push_back(std::move(w));
+    auto lw = std::make_unique<boot::LevelSelectWindow>();
+    lw->set_bounds(w->get_bounds());
+
+    auto wd = WindowData {
+        .win = std::move(lw),
+        .name_bounds = {}
+    };
+    this->windows.push_back(std::move(wd));
+    wd.win = std::move(w);
+    this->windows.push_back(std::move(wd));
+
     for (auto& window : this->windows) {
-        window->init(*this);
+        window.win->init(*this);
     }
+    m_current_window = &windows[0];
+    update_measurements();
 }
-static void setup_colors(lua_State* lua) {
-    const auto add_color = [=](const char* name, unsigned int hex){
+static void setup_colors(lua_State* lua)
+{
+    const auto add_color = [=](const char* name, unsigned int hex) {
         lua_pushinteger(lua, hex);
         lua_setglobal(lua, name);
     };
@@ -48,6 +72,10 @@ static void setup_colors(lua_State* lua) {
 }
 void boot::Game::init_lua_state(void)
 {
+    if (m_lua_state) {
+        lua_close(m_lua_state);
+        m_lua_state = NULL;
+    }
     m_lua_state = luaL_newstate();
     luaL_openlibs(m_lua_state);
     lua_pushinteger(m_lua_state, 0);
@@ -64,33 +92,55 @@ void boot::Game::init_lua_state(void)
 void boot::Game::deinit()
 {
     windows.clear();
+    meu3_free_package(meu3_pack);
+    meu3_pack = nullptr;
+}
+void boot::Game::update_measurements(void)
+{
+    const auto window_bar_h = WINDOW_BAR_HEIGHT * m_dims.y;
+    const float padding = .02f * this->m_dims.x;
+    float offset = padding;
+    for (auto& window : this->windows) {
+        const auto name = window.win->get_window_name();
+        const auto tmpsz = MeasureTextEx(font, name, window_bar_h, WINDOW_NAME_FONT_SPACING);
+        window.name_bounds = {
+            .x = offset,
+            .y = 0,
+            .width = tmpsz.x,
+            .height = tmpsz.y
+        };
+        offset += tmpsz.x + padding;
+        window.win->set_bounds({
+            .x = 0,
+            .y = window_bar_h,
+            .width = m_dims.x,
+            .height = m_dims.y - window_bar_h,
+        });
+    }
 }
 void boot::Game::update()
 {
     bool resized = IsWindowResized();
     if (resized) {
         m_dims = { (float)GetScreenWidth(), (float)GetScreenHeight() };
+        update_measurements();
     }
-    const auto window_bar_h = WINDOW_BAR_HEIGHT * m_dims.y;
-    for (auto& window : this->windows) {
-        if (resized) {
-            window->set_bounds({
-                .x = 0,
-                .y = window_bar_h,
-                .width = m_dims.x,
-                .height = m_dims.y - window_bar_h,
-            });
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        const auto mouse = GetMousePosition();
+        for (auto& window : windows) {
+            if (CheckCollisionPointRec(mouse, window.name_bounds)) {
+                m_current_window = &window;
+                break;
+            }
         }
-        window->update(*this);
     }
+    m_current_window->win->update(*this);
 }
 void boot::Game::draw()
 {
     BeginDrawing();
     ClearBackground(BLACK);
-    for (auto& window : this->windows) {
-        window->draw(*this);
-    }
+    m_current_window->win->draw(*this);
     const auto window_bar_h = WINDOW_BAR_HEIGHT * m_dims.y;
     DrawRectangleRec(
         {
@@ -100,18 +150,23 @@ void boot::Game::draw()
             .height = window_bar_h,
         },
         BLUE);
-    const float padding = 2.0;
-    float offset = 0.0 + padding;
     for (auto& window : this->windows) {
-        auto name = window->get_window_name();
-        auto tmpsz = MeasureTextEx(m_font, name, window_bar_h, 10);
-        DrawTextEx(m_font, name, { 0 + offset, 0 }, window_bar_h, 10, WHITE);
-        offset += tmpsz.x + padding;
+        auto name = window.win->get_window_name();
+        if (&window == m_current_window) {
+            auto back = window.name_bounds;
+            back.x -= m_dims.x * 0.01;
+            back.width += m_dims.x * 0.02;
+            DrawRectangleRec(back, WHITE);
+            DrawTextEx(font, name, { window.name_bounds.x, window.name_bounds.y }, window_bar_h, WINDOW_NAME_FONT_SPACING, BLUE);
+        } else {
+            DrawTextEx(font, name, { window.name_bounds.x, window.name_bounds.y }, window_bar_h, WINDOW_NAME_FONT_SPACING, WHITE);
+        }
     }
     EndDrawing();
 }
-static Color decode_color_from_hex(unsigned int hex_color){
-    Color ret = { };
+static Color decode_color_from_hex(unsigned int hex_color)
+{
+    Color ret = {};
     ret.a |= hex_color;
     hex_color >>= 8;
     ret.b |= hex_color;
@@ -134,10 +189,10 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
                 lua_setglobal(m_lua_state, "y");
                 lua_pushinteger(m_lua_state, z);
                 lua_setglobal(m_lua_state, "z");
-                if(luaL_dostring(m_lua_state, source.data())){
+                if (luaL_dostring(m_lua_state, source.data())) {
                     auto* err = lua_tostring(m_lua_state, -1);
                     std::printf("pcall failed : %s\n",
-                            err);
+                        err);
                     return err;
                 }
                 lua_getglobal(m_lua_state, "Color");
@@ -152,4 +207,84 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
 Color boot::Game::color_for(int x, int y, int z)
 {
     return this->cube.color_data[x][y][z];
+}
+namespace boot {
+void Game::load_level_solution(const Level& lvl)
+{
+    solution = std::nullopt;
+    if (lvl.ty == Level::Type::Lua) {
+        std::printf("%.*s\n", (int)lvl.data_len, (char*)lvl.data_ptr);
+        init_lua_state();
+        auto error = luaL_loadbuffer(m_lua_state, reinterpret_cast<const char*>(lvl.data_ptr), lvl.data_len, "levelgen")
+            || lua_pcall(m_lua_state, 0, 0, 0);
+        // if (error) {
+        //     TraceLog(LOG_ERROR, "Error while running lua levelgen script\n%s", lua_tostring(m_lua_state, -1));
+        //     goto crash_and_burn;
+        // }
+        int x {}, y {}, z {};
+        lua_getglobal(m_lua_state, "X");
+        if (!lua_isinteger(m_lua_state, -1)) {
+            TraceLog(LOG_ERROR, "Error while running lua levelgen script: X was not an integer (%s)", lua_typename(m_lua_state, -1));
+            goto crash_and_burn;
+        }
+        x = lua_tointeger(m_lua_state, -1);
+        lua_getglobal(m_lua_state, "Y");
+        if (!lua_isinteger(m_lua_state, -1)) {
+            TraceLog(LOG_ERROR, "Error while running lua levelgen script: Y was not an integer");
+            goto crash_and_burn;
+        }
+        y = lua_tointeger(m_lua_state, -1);
+        lua_getglobal(m_lua_state, "Z");
+        if (!lua_isinteger(m_lua_state, -1)) {
+            TraceLog(LOG_ERROR, "Error while running lua levelgen script: Z was not an integer");
+            goto crash_and_burn;
+        }
+        z = lua_tointeger(m_lua_state, -1);
+        lua_settop(m_lua_state, 0);
+
+        TraceLog(LOG_DEBUG, "X = %d Y = %d Z = %d", x, y, z);
+
+        solution = CubeData(x, y, z);
+        for (int x = 0; x < solution->x; x++) {
+            for (int y = 0; y < solution->y; y++) {
+                for (int z = 0; z < solution->z; z++) {
+                    lua_pushinteger(m_lua_state, 0);
+                    lua_setglobal(m_lua_state, "Color");
+                    lua_pushinteger(m_lua_state, x);
+                    lua_setglobal(m_lua_state, "x");
+                    lua_pushinteger(m_lua_state, y);
+                    lua_setglobal(m_lua_state, "y");
+                    lua_pushinteger(m_lua_state, z);
+                    lua_setglobal(m_lua_state, "z");
+
+
+                    lua_getglobal(m_lua_state, "Generate");
+                    if (!lua_isfunction(m_lua_state, -1)) {
+                        TraceLog(LOG_ERROR, "Error while running lua levelgen script: Generate function missing");
+                        goto crash_and_burn;
+                    }
+                    if(lua_pcall(m_lua_state, 0, 0, 0)){
+                        TraceLog(LOG_ERROR, "Error while running lua levelgen script\n%s", lua_tostring(m_lua_state, -1));
+                        goto crash_and_burn;
+                    }
+
+                    lua_getglobal(m_lua_state, "Color");
+                    unsigned int c = lua_tointeger(m_lua_state, -1);
+                    lua_settop(m_lua_state, 0);
+                    solution->color_data[x][y][z] = decode_color_from_hex(c);
+                }
+            }
+        }
+
+    } else {
+        TraceLog(LOG_DEBUG, "Raw level data WIP");
+    }
+    cube = CubeData(solution->x, solution->y, solution->z);
+    return;
+crash_and_burn:
+    solution = std::nullopt;
+    lua_settop(m_lua_state, 0);
+    init_lua_state();
+    return;
+}
 }

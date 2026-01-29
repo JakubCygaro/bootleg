@@ -6,6 +6,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    add_compile_options(-D DEBUG)
+endif()
+
 add_library(cppfeatures INTERFACE)
 
 include(FetchContent)
@@ -21,12 +25,18 @@ set_target_properties(
     meu3
     PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${meu3IncludeDirs}"
+)
+set_property(TARGET meu3
+    APPEND
+    PROPERTY
     INTERFACE_LINK_LIBRARIES "${meu3StaticLibs}"
+    APPEND
+    PROPERTY
     INTERFACE_LINK_LIBRARIES "${meu3LinkLibs}"
 )
-include_directories(
-    ${meu3IncludeDirs}
-)
+# include_directories(
+#     ${meu3IncludeDirs}
+# )
 
 find_package(Lua)
 
@@ -77,6 +87,7 @@ target_link_libraries(bed
 add_executable(bootleg
     ${CMAKE_SOURCE_DIR}/src/main.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/editor_window.cc
+    ${CMAKE_SOURCE_DIR}/src/bootleg/level_select_window.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/game.cc
 )
 target_link_libraries(bootleg
@@ -84,7 +95,7 @@ target_link_libraries(bootleg
     PRIVATE cppfeatures
     PRIVATE raylib
     PRIVATE Lua::Lua
-    PRIVATE Lua::Lua
+    PRIVATE meu3
 )
 
 target_link_libraries(bed
