@@ -52,7 +52,7 @@ void boot::Game::init()
     for (auto& window : this->windows) {
         window.win->init(*this);
     }
-    m_current_window = &windows[0];
+    m_current_window = 0;
     update_measurements();
 }
 static void setup_colors(lua_State* lua)
@@ -125,22 +125,25 @@ void boot::Game::update()
         m_dims = { (float)GetScreenWidth(), (float)GetScreenHeight() };
         update_measurements();
     }
+    if (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_TAB)) {
+        m_current_window = (m_current_window + 1) % windows.size();
+    }
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         const auto mouse = GetMousePosition();
-        for (auto& window : windows) {
-            if (CheckCollisionPointRec(mouse, window.name_bounds)) {
-                m_current_window = &window;
+        for (size_t i = 0; i < windows.size(); i++) {
+            if (CheckCollisionPointRec(mouse, windows[i].name_bounds)) {
+                m_current_window = i;
                 break;
             }
         }
     }
-    m_current_window->win->update(*this);
+    windows[m_current_window].win->update(*this);
 }
 void boot::Game::draw()
 {
     BeginDrawing();
     ClearBackground(BLACK);
-    m_current_window->win->draw(*this);
+    windows[m_current_window].win->draw(*this);
     const auto window_bar_h = WINDOW_BAR_HEIGHT * m_dims.y;
     DrawRectangleRec(
         {
@@ -150,16 +153,17 @@ void boot::Game::draw()
             .height = window_bar_h,
         },
         BLUE);
-    for (auto& window : this->windows) {
-        auto name = window.win->get_window_name();
-        if (&window == m_current_window) {
-            auto back = window.name_bounds;
+    for (size_t i = 0; i < windows.size(); i++) {
+        auto name = windows[i].win->get_window_name();
+        auto name_bounds = windows[i].name_bounds;
+        if (i == m_current_window) {
+            auto back = name_bounds;
             back.x -= m_dims.x * 0.01;
             back.width += m_dims.x * 0.02;
             DrawRectangleRec(back, WHITE);
-            DrawTextEx(font, name, { window.name_bounds.x, window.name_bounds.y }, window_bar_h, WINDOW_NAME_FONT_SPACING, BLUE);
+            DrawTextEx(font, name, { name_bounds.x, name_bounds.y }, window_bar_h, WINDOW_NAME_FONT_SPACING, BLUE);
         } else {
-            DrawTextEx(font, name, { window.name_bounds.x, window.name_bounds.y }, window_bar_h, WINDOW_NAME_FONT_SPACING, WHITE);
+            DrawTextEx(font, name, { name_bounds.x, name_bounds.y }, window_bar_h, WINDOW_NAME_FONT_SPACING, WHITE);
         }
     }
     EndDrawing();
@@ -257,13 +261,12 @@ void Game::load_level_solution(const Level& lvl)
                     lua_pushinteger(m_lua_state, z);
                     lua_setglobal(m_lua_state, "z");
 
-
                     lua_getglobal(m_lua_state, "Generate");
                     if (!lua_isfunction(m_lua_state, -1)) {
                         TraceLog(LOG_ERROR, "Error while running lua levelgen script: Generate function missing");
                         goto crash_and_burn;
                     }
-                    if(lua_pcall(m_lua_state, 0, 0, 0)){
+                    if (lua_pcall(m_lua_state, 0, 0, 0)) {
                         TraceLog(LOG_ERROR, "Error while running lua levelgen script\n%s", lua_tostring(m_lua_state, -1));
                         goto crash_and_burn;
                     }
@@ -286,5 +289,14 @@ crash_and_burn:
     lua_settop(m_lua_state, 0);
     init_lua_state();
     return;
+}
+void Game::transition_to(std::string_view window_name)
+{
+    for (size_t i = 0; i < windows.size(); i++) {
+        if (window_name == windows[i].win->get_window_name()) {
+            m_current_window = i;
+            return;
+        }
+    }
 }
 }

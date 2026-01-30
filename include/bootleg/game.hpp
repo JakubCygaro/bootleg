@@ -2,6 +2,7 @@
 #define BOOT_GAME_HPP
 #include <buffer.hpp>
 #include <cstddef>
+#include <string_view>
 #include <unordered_map>
 #ifdef __cplusplus
 extern "C" {
@@ -10,10 +11,10 @@ extern "C" {
 #include <lualib.h>
 }
 #endif
+#include "meu3.h"
 #include <memory>
 #include <raylib.h>
 #include <vector>
-#include "meu3.h"
 
 #ifndef STRINGIFY
 #define STRINGIFY(TOKEN) #TOKEN
@@ -32,8 +33,8 @@ namespace colors {
 class Game;
 
 struct Level {
-    MEU3_BYTES data_ptr{};
-    unsigned long long data_len{};
+    MEU3_BYTES data_ptr {};
+    unsigned long long data_len {};
     enum struct Type {
         Lua,
         Raw
@@ -82,24 +83,25 @@ struct CubeData {
 class Game {
 public:
     struct WindowData;
+
 private:
     Vector2 m_dims {};
     lua_State* m_lua_state {};
-    WindowData* m_current_window{};
+    size_t m_current_window {};
 
 public:
     Font font;
     CubeData cube {};
     std::optional<CubeData> solution {};
     MEU3_PACKAGE* meu3_pack {};
-    std::vector<Level> levels{};
+    std::vector<Level> levels {};
     inline Game(float w, float h)
         : m_dims(w, h)
     {
     }
     struct WindowData {
-        std::unique_ptr<Window> win{};
-        Rectangle name_bounds{};
+        std::unique_ptr<Window> win {};
+        Rectangle name_bounds {};
     };
     // windows? I'm gonna puke
     std::vector<WindowData> windows {};
@@ -111,6 +113,7 @@ public:
     std::optional<std::string> load_source(const std::string&);
     void load_level_solution(const Level& lvl);
     Color color_for(int x, int y, int z);
+    void transition_to(std::string_view window_name);
 
 private:
     void init_lua_state(void);
@@ -131,6 +134,7 @@ public:
     virtual const char* get_window_name() override;
     virtual void set_bounds(Rectangle r) override;
     virtual ~EditorWindow();
+
 private:
     void update_bounds(void);
 };
@@ -138,6 +142,9 @@ class LevelSelectWindow final : public Window {
     std::unique_ptr<bed::TextBuffer> m_lvl_text_buffer = nullptr;
     std::unique_ptr<bed::TextBuffer> m_lvl_menu_buffer = nullptr;
     std::unordered_map<std::string, size_t> m_lvl_name_idx_map = {};
+
+    Level* m_current_level = nullptr;
+
 public:
     explicit LevelSelectWindow();
     virtual void init(Game& game_state) override;

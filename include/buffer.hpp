@@ -120,6 +120,8 @@ public:
     void toggle_cursor(void);
     bool is_cursor_visible(void) const;
     line_t& current_line(void);
+    bool has_focus(void) const;
+    size_t get_line_number(void) const;
     const line_t& current_line(void) const;
     const std::optional<Selection>& get_selection(void);
     // if | is the cursor then x is the character

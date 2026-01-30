@@ -123,6 +123,14 @@ TextBuffer::line_t& TextBuffer::current_line(void)
 {
     return m_lines[m_cursor.line].contents;
 }
+bool TextBuffer::has_focus(void) const
+{
+    return m_has_focus;
+}
+size_t TextBuffer::get_line_number(void) const
+{
+    return m_cursor.line;
+}
 void TextBuffer::toggle_cursor(void)
 {
     m_draw_cursor = !m_draw_cursor;
