@@ -2,6 +2,7 @@
 #define BOOT_GAME_HPP
 #include <buffer.hpp>
 #include <cstddef>
+#include <unordered_map>
 #ifdef __cplusplus
 extern "C" {
 #include <lauxlib.h>
@@ -134,14 +135,16 @@ private:
     void update_bounds(void);
 };
 class LevelSelectWindow final : public Window {
-    
+    std::unique_ptr<bed::TextBuffer> m_lvl_text_buffer = nullptr;
+    std::unique_ptr<bed::TextBuffer> m_lvl_menu_buffer = nullptr;
+    std::unordered_map<std::string, size_t> m_lvl_name_idx_map = {};
 public:
     explicit LevelSelectWindow();
     virtual void init(Game& game_state) override;
     virtual void update(Game& game_state) override;
     virtual void draw(Game& game_state) override;
     virtual const char* get_window_name() override;
-    // virtual void set_bounds(Rectangle r) override;
+    virtual void set_bounds(Rectangle r) override;
     virtual ~LevelSelectWindow();
 };
 }

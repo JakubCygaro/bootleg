@@ -123,6 +123,14 @@ TextBuffer::line_t& TextBuffer::current_line(void)
 {
     return m_lines[m_cursor.line].contents;
 }
+void TextBuffer::toggle_cursor(void)
+{
+    m_draw_cursor = !m_draw_cursor;
+}
+bool TextBuffer::is_cursor_visible(void) const
+{
+    return m_draw_cursor;
+}
 const TextBuffer::line_t& TextBuffer::current_line(void) const
 {
     return m_lines[m_cursor.line].contents;
@@ -410,7 +418,8 @@ void TextBuffer::delete_lines(size_t start, size_t end)
     update_total_height();
     update_viewport_to_cursor();
 }
-void TextBuffer::clear(void){
+void TextBuffer::clear(void)
+{
     m_lines.clear();
     m_lines.push_back({});
     m_cursor = {};
@@ -521,6 +530,17 @@ void TextBuffer::insert_string(line_t&& str)
     m_cursor.col += len;
     update_total_height();
     update_viewport_to_cursor();
+    measure_line(m_lines[m_cursor.line]);
+}
+void TextBuffer::insert_line(line_t&& str)
+{
+    auto const len = str.size();
+    current_line().insert(m_cursor.col, str);
+    m_cursor.col += len;
+    update_total_height();
+    update_viewport_to_cursor();
+    measure_line(m_lines[m_cursor.line]);
+    insert_newline();
     measure_line(m_lines[m_cursor.line]);
 }
 void TextBuffer::jump_cursor_to_top(bool with_selection)
@@ -650,14 +670,14 @@ void TextBuffer::draw(void)
             int csz = 1;
             int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
             const float glyph_width = get_glyph_width(m_font, c);
-            bool skip_draws = !CheckCollisionPointRec({pos.x + glyph_width, pos.y}, m_bounds);
+            bool skip_draws = !CheckCollisionPointRec({ pos.x + glyph_width, pos.y }, m_bounds);
             // wrap the line if it goes out of bounds
             if (m_wrap_lines && skip_draws) {
                 pos.x = m_bounds.x;
                 pos.y += f_line_advance;
                 skip_draws = false;
             }
-            if ((long)linen == m_cursor.line && (long)col == m_cursor.col && !skip_draws && !m_readonly) {
+            if ((long)linen == m_cursor.line && (long)col == m_cursor.col && !skip_draws && m_draw_cursor) {
                 auto cursor_line = Rectangle {
                     .x = pos.x,
                     .y = pos.y,
@@ -683,7 +703,7 @@ void TextBuffer::draw(void)
             pos.x += glyph_width + m_glyph_spacing;
             col += csz;
         }
-        if (m_cursor.line == (long)linen && m_cursor.col == (long)current_line.contents.size() && !m_readonly) {
+        if (m_cursor.line == (long)linen && m_cursor.col == (long)current_line.contents.size() && m_draw_cursor) {
             auto rect = Rectangle {
                 .x = pos.x,
                 .y = pos.y,
@@ -711,7 +731,7 @@ void TextBuffer::update_buffer_mouse(void)
 {
     const auto p = GetMousePosition();
     const auto inbounds = CheckCollisionPointRec(p, m_bounds);
-    if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         m_has_focus = inbounds;
     }
     if (!inbounds || !m_has_focus)
@@ -752,7 +772,8 @@ void TextBuffer::update_buffer(void)
 
     update_buffer_mouse();
     const auto start_pos = m_cursor;
-    if(!m_has_focus) return;
+    if (!m_has_focus)
+        return;
     if (IsKeyPressedOrRepeat(KEY_LEFT)) {
         if (AnySpecialDown(CONTROL)) {
             move_cursor_word(-1, shift_down);

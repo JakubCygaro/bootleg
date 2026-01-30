@@ -86,6 +86,7 @@ private:
     bool m_wrap_lines = false;
     bool m_readonly = false;
     bool m_has_focus = false;
+    bool m_draw_cursor = true;
 
 public:
     Color foreground_color = WHITE;
@@ -116,6 +117,8 @@ public:
     bool is_wrapping_lines(void) const;
     void toggle_readonly(void);
     bool is_readonly(void) const;
+    void toggle_cursor(void);
+    bool is_cursor_visible(void) const;
     line_t& current_line(void);
     const line_t& current_line(void) const;
     const std::optional<Selection>& get_selection(void);
@@ -158,6 +161,7 @@ public:
     void insert_newline(void);
     void insert_character(char_t c);
     void insert_string(line_t&& str);
+    void insert_line(line_t&& str);
     // selection
     void start_selection(void);
     void clear_selection(void);

@@ -1,14 +1,46 @@
 #include "bootleg/game.hpp"
 #include <format>
+#include <memory>
 #include <meu3.h>
 #include <print>
 #include <raylib.h>
+
+constexpr const std::string display_name_padding = " - ";
+
 namespace boot {
 LevelSelectWindow::LevelSelectWindow()
 {
 }
+static Rectangle bounds_for_lvl_tbuf(const Rectangle& w_bounds)
+{
+    constexpr const float buf_margin = 0.05f;
+    const float margin_w = w_bounds.width * buf_margin;
+    const float margin_h = w_bounds.height * buf_margin;
+    return Rectangle {
+        .x = w_bounds.x + margin_w / 2,
+        .y = w_bounds.y + margin_h / 2,
+        .width = (w_bounds.width / 2) - (margin_w ),
+        .height = (w_bounds.height) - (margin_h )
+    };
+}
+static Rectangle bounds_for_lvl_menu_tbuf(const Rectangle& w_bounds)
+{
+    auto tmp = bounds_for_lvl_tbuf(w_bounds);
+    tmp.x += w_bounds.width / 2;
+    return tmp;
+}
 void LevelSelectWindow::init(Game& game_state)
 {
+    m_lvl_text_buffer = std::make_unique<bed::TextBuffer>(game_state.font, m_bounds);
+    m_lvl_text_buffer->toggle_readonly();
+    m_lvl_text_buffer->toggle_wrap_lines();
+    m_lvl_text_buffer->set_bounds(bounds_for_lvl_tbuf(m_bounds));
+    m_lvl_text_buffer->insert_line("# Select a level by moving the cursor onto the line with its name and press ENTER");
+    m_lvl_text_buffer->insert_line("");
+
+    m_lvl_menu_buffer = std::make_unique<bed::TextBuffer>(game_state.font, m_bounds);
+    m_lvl_text_buffer->set_bounds(bounds_for_lvl_menu_tbuf(m_bounds));
+
     const auto base_path = "game/levels/";
     for (auto i = 1;; i++) {
         const auto lvl_path = std::format("{}lvl{}.lua", base_path, i);
@@ -25,6 +57,9 @@ void LevelSelectWindow::init(Game& game_state)
             lvl.data_ptr = meu3_package_get_data_ptr(game_state.meu3_pack, lvl_path.data(), &lvl.data_len, &err);
             lvl.ty = Level::Type::Lua;
             game_state.levels.push_back(std::move(lvl));
+            auto display_name = std::format("LEVEL_{:02}", i);
+            m_lvl_name_idx_map[display_name] = game_state.levels.size() - 1;
+            m_lvl_text_buffer->insert_line(std::format("{}{}", display_name_padding, display_name));
         } else {
             break;
         }
@@ -32,38 +67,39 @@ void LevelSelectWindow::init(Game& game_state)
 }
 void LevelSelectWindow::update(Game& game_state)
 {
-    if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-        return;
-    const auto mouse = GetMousePosition();
-    Vector2 pos = { m_bounds.x + (m_bounds.width / 2), m_bounds.y };
-    auto lvl_it = game_state.levels.begin();
-    const std::string name = std::format("level-00");
-    auto sz = MeasureTextEx(game_state.font, name.data(), 24, 12);
-    pos.x -= sz.x / 2.;
-    for (; lvl_it != game_state.levels.end(); lvl_it++) {
-        if (CheckCollisionPointRec(mouse, { pos.x, pos.y, sz.x, sz.y })) {
-            TraceLog(LOG_DEBUG, "attempting to load level");
-            game_state.load_level_solution(*lvl_it);
-            return;
+    if((IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))){
+        const auto& line = m_lvl_text_buffer->current_line();
+        auto pad = line.find(display_name_padding);
+        if(pad != std::string::npos){
+            const std::string name(line.begin() + pad, line.end());
+            auto idx = m_lvl_name_idx_map[name];
+            game_state.load_level_solution(game_state.levels[idx]);
         }
-        pos.y += sz.y + 2;
+    } else {
+        m_lvl_text_buffer->update_buffer();
     }
+    m_lvl_menu_buffer->update_buffer();
 }
 void LevelSelectWindow::draw(Game& game_state)
 {
-    Vector2 pos = { m_bounds.x + (m_bounds.width / 2), m_bounds.y };
-    auto lvl_it = game_state.levels.begin();
-    for (auto i = 1; lvl_it != game_state.levels.end(); i++, lvl_it++) {
-        const std::string name = std::format("level-{}", i);
-        auto sz = MeasureTextEx(game_state.font, name.data(), 24, 12);
-        DrawText(name.data(), static_cast<int>(pos.x - sz.x / 2), static_cast<int>(pos.y), 24, WHITE);
-        pos.y += sz.y + 2;
-    }
+    DrawRectangleGradientEx(m_bounds, GREEN, BLUE, GREEN, BLUE);
+    m_lvl_text_buffer->draw();
+    m_lvl_menu_buffer->draw();
 }
 const char* LevelSelectWindow::get_window_name()
 {
     static std::string name = "levels";
     return name.data();
+}
+void LevelSelectWindow::set_bounds(Rectangle r)
+{
+    Window::set_bounds(r);
+    if (m_lvl_text_buffer) {
+        m_lvl_text_buffer->set_bounds(bounds_for_lvl_tbuf(m_bounds));
+    }
+    if (m_lvl_menu_buffer) {
+        m_lvl_menu_buffer->set_bounds(bounds_for_lvl_menu_tbuf(m_bounds));
+    }
 }
 LevelSelectWindow::~LevelSelectWindow()
 {

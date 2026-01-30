@@ -46,6 +46,7 @@ void boot::EditorWindow::init(Game& game_state)
     m_output_buffer->set_font_size(30);
     m_output_buffer->toggle_wrap_lines();
     m_output_buffer->toggle_readonly();
+    m_output_buffer->toggle_cursor();
     m_output_buffer->background_color = { 0x1f, 0x1f, 0x1f, 255 };
     m_camera.position = (Vector3) { 20.0f, 10.0f, 0.0f };
     m_camera.target = { 0, 0, 0 };
