@@ -75,7 +75,7 @@ void LevelSelectWindow::update(Game& game_state)
         if(pad != std::string::npos){
             const std::string name(line.begin() + pad, line.end());
             auto idx = m_lvl_name_idx_map[name];
-            m_current_level = &game_state.levels[idx];
+            m_current_level = idx;
             m_lvl_menu_buffer->clear();
             m_lvl_menu_buffer->insert_line(std::format("# {}", name));
             m_lvl_menu_buffer->insert_newline();
@@ -85,12 +85,12 @@ void LevelSelectWindow::update(Game& game_state)
     } else {
         m_lvl_text_buffer->update_buffer();
     }
-    if(m_current_level){
+    if(m_current_level != -1){
         m_lvl_menu_buffer->update_buffer();
         if((IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) && m_lvl_menu_buffer->has_focus()){
             switch(m_lvl_menu_buffer->get_line_number()){
                 case 2:
-                    game_state.load_level_solution(*m_current_level);
+                    game_state.load_level(game_state.levels[m_current_level], std::format("lvl{}.lua", m_current_level + 1));
                     game_state.transition_to("editor");
                     break;
                 case 3:

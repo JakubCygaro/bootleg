@@ -533,12 +533,31 @@ void TextBuffer::insert_character(char_t c)
 }
 void TextBuffer::insert_string(line_t&& str)
 {
-    auto const len = str.size();
-    current_line().insert(m_cursor.col, str);
-    m_cursor.col += len;
+    std::string line = {};
+    for (const auto c : str) {
+        if (c == '\n'){
+            current_line().insert(m_cursor.col, line);
+            m_cursor.col += line.length();
+            measure_line(m_lines[m_cursor.line]);
+            insert_newline();
+            line = {};
+        } else if (c == '\r') {
+            continue;
+        } else if (c == '\t') {
+            line.append("    ");
+        } else {
+            line.push_back(c);
+        }
+    }
+    current_line().insert(m_cursor.col, line);
+    measure_line(m_lines[m_cursor.line]);
+    m_cursor.col += line.length();
+
+    // current_line().insert(m_cursor.col, str);
+    // m_cursor.col += len;
     update_total_height();
     update_viewport_to_cursor();
-    measure_line(m_lines[m_cursor.line]);
+    // measure_line(m_lines[m_cursor.line]);
 }
 void TextBuffer::insert_line(line_t&& str)
 {
@@ -678,7 +697,7 @@ void TextBuffer::draw(void)
             int csz = 1;
             int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
             const float glyph_width = get_glyph_width(m_font, c);
-            bool skip_draws = !CheckCollisionPointRec({ pos.x + glyph_width, pos.y }, m_bounds);
+            bool skip_draws = !CheckCollisionPointRec({ pos.x + glyph_width, pos.y }, m_bounds) || pos.x < m_bounds.x;
             // wrap the line if it goes out of bounds
             if (m_wrap_lines && skip_draws) {
                 pos.x = m_bounds.x;
@@ -859,20 +878,20 @@ void TextBuffer::update_buffer(void)
     }
     if (IsKeyPressedOrRepeat(KEY_V) && AnySpecialDown(CONTROL) && !m_readonly) {
         const char* clipboard = GetClipboardText();
-        TextBuffer::line_t line {};
-        for (size_t i = 0; clipboard[i] != '\0'; i++) {
-            if (clipboard[i] == '\n') {
-                insert_string(std::move(line));
-                insert_newline();
-                line = {};
-            } else if (clipboard[i] == '\r') {
-                continue;
-            } else if (clipboard[i] == '\t') {
-                line.append("    ");
-            } else {
-                line.push_back(clipboard[i]);
-            }
-        }
+        TextBuffer::line_t line {clipboard};
+        // for (size_t i = 0; clipboard[i] != '\0'; i++) {
+        //     if (clipboard[i] == '\n') {
+        //         insert_string(std::move(line));
+        //         insert_newline();
+        //         line = {};
+        //     } else if (clipboard[i] == '\r') {
+        //         continue;
+        //     } else if (clipboard[i] == '\t') {
+        //         line.append("    ");
+        //     } else {
+        //         line.push_back(clipboard[i]);
+        //     }
+        // }
         insert_string(std::move(line));
     }
     if (IsKeyPressedOrRepeat(KEY_C) && AnySpecialDown(CONTROL)) {

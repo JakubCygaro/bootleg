@@ -88,6 +88,7 @@ private:
     Vector2 m_dims {};
     lua_State* m_lua_state {};
     size_t m_current_window {};
+    std::string m_current_save_name {};
 
 public:
     Font font;
@@ -95,6 +96,7 @@ public:
     std::optional<CubeData> solution {};
     MEU3_PACKAGE* meu3_pack {};
     std::vector<Level> levels {};
+    std::optional<std::string> saved_solution{};
     inline Game(float w, float h)
         : m_dims(w, h)
     {
@@ -111,9 +113,10 @@ public:
     void draw();
     void update_measurements(void);
     std::optional<std::string> load_source(const std::string&);
-    void load_level_solution(const Level& lvl);
+    void load_level(const Level& lvl, std::string name);
     Color color_for(int x, int y, int z);
     void transition_to(std::string_view window_name);
+    void save_solution_for_current_level(std::string&& solution);
 
 private:
     void init_lua_state(void);
@@ -143,7 +146,7 @@ class LevelSelectWindow final : public Window {
     std::unique_ptr<bed::TextBuffer> m_lvl_menu_buffer = nullptr;
     std::unordered_map<std::string, size_t> m_lvl_name_idx_map = {};
 
-    Level* m_current_level = nullptr;
+    int m_current_level = -1;
 
 public:
     explicit LevelSelectWindow();

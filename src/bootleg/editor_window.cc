@@ -1,5 +1,6 @@
 #include <bootleg/game.hpp>
 #include <memory>
+#include <optional>
 #include <print>
 #include <raylib.h>
 #include <raymath.h>
@@ -64,6 +65,11 @@ boot::EditorWindow::~EditorWindow()
 void boot::EditorWindow::update(Game& game_state)
 {
     static bool cube_clicked = false;
+    if(game_state.saved_solution){
+        m_text_buffer->clear();
+        m_text_buffer->insert_string(std::move(*game_state.saved_solution));
+        game_state.saved_solution = std::nullopt;
+    }
     const auto mouse = GetMousePosition();
     cube_clicked = (CheckCollisionPointRec(mouse, m_cube_bounds) && IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
         || (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && cube_clicked);
@@ -75,6 +81,8 @@ void boot::EditorWindow::update(Game& game_state)
             auto errstr = *err;
             m_output_buffer->insert_string(std::move(errstr));
         }
+    } else if (IsKeyPressed(KEY_S) && AnySpecialDown(CONTROL)) {
+        game_state.save_solution_for_current_level(m_text_buffer->get_contents_as_string());
     } else {
         this->m_text_buffer->update_buffer();
     }
@@ -103,7 +111,7 @@ void boot::EditorWindow::draw(Game& game_state)
                 Vector3 pos = (Vector3) { (float)x, (float)y, (float)z };
                 if (c.a == 255)
                     DrawCube(pos, brick_width, brick_width, brick_width, c);
-                else if(game_state.solution){
+                else if (game_state.solution) {
                     const auto scolor = game_state.solution->color_data[nx][ny][nz];
                     DrawCube(pos, brick_width, brick_width, brick_width, { scolor.r, scolor.g, scolor.b, 80 });
                 }

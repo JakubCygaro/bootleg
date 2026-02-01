@@ -16,7 +16,7 @@ include(FetchContent)
 #Commands are left empty so that we only checkout the source and no not perform any kind of build
 FetchContent_Declare(gitmeu3
     GIT_REPOSITORY "https://github.com/JakubCygaro/meurglys3.git"
-    GIT_TAG 9654c061fffcc3fba5ac360aa2be3493ae1e7913
+    GIT_TAG ef70d35364d0a4183cba88ea01385b3c727c2a61
 )
 FetchContent_MakeAvailable(gitmeu3)
 

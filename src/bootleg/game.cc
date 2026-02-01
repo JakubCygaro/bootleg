@@ -6,6 +6,7 @@
 #include <print>
 #include <raylib.h>
 #include <stdexcept>
+#include <string_view>
 
 #ifdef __cplusplus
 extern "C" {
@@ -213,11 +214,14 @@ Color boot::Game::color_for(int x, int y, int z)
     return this->cube.color_data[x][y][z];
 }
 namespace boot {
-void Game::load_level_solution(const Level& lvl)
+void Game::load_level(const Level& lvl, std::string name)
 {
     solution = std::nullopt;
+    saved_solution = std::nullopt;
+    MEU3_Error err = NoError;
+    const auto saved_path = std::format("player/levels/{}", name);
     if (lvl.ty == Level::Type::Lua) {
-        std::printf("%.*s\n", (int)lvl.data_len, (char*)lvl.data_ptr);
+        // std::printf("%.*s\n", (int)lvl.data_len, (char*)lvl.data_ptr);
         init_lua_state();
         auto error = luaL_loadbuffer(m_lua_state, reinterpret_cast<const char*>(lvl.data_ptr), lvl.data_len, "levelgen")
             || lua_pcall(m_lua_state, 0, 0, 0);
@@ -283,6 +287,16 @@ void Game::load_level_solution(const Level& lvl)
         TraceLog(LOG_DEBUG, "Raw level data WIP");
     }
     cube = CubeData(solution->x, solution->y, solution->z);
+    m_current_save_name = name;
+    if(meu3_package_has(meu3_pack, saved_path.data(), &err)){
+        auto len = 0ull;
+        auto ptr = (char*)meu3_package_get_data_ptr(meu3_pack, saved_path.data(), &len, &err);
+        if(err != NoError){
+            TraceLog(LOG_ERROR, "Error while trying to load a saved solution for level `%s`", saved_path.data());
+        } else {
+            saved_solution = std::string(ptr, len);
+        }
+    }
     return;
 crash_and_burn:
     solution = std::nullopt;
@@ -297,6 +311,22 @@ void Game::transition_to(std::string_view window_name)
             m_current_window = i;
             return;
         }
+    }
+}
+void Game::save_solution_for_current_level(std::string&& solution)
+{
+    const auto base_path = "player/levels";
+    const auto current_lvl_path = std::format("{}/{}", base_path, m_current_save_name);
+    MEU3_Error err = NoError;
+    meu3_package_insert(meu3_pack, current_lvl_path.data(), reinterpret_cast<unsigned char*>(solution.data()), solution.size(), &err);
+    if(err != NoError){
+        TraceLog(LOG_ERROR, "Error while trying to save solution for level `%s`", m_current_save_name.data());
+        return;
+    }
+    meu3_write_package(GAME_DATA_PATH.data(), meu3_pack, &err);
+    if(err != NoError){
+        TraceLog(LOG_ERROR, "Error while trying to write package ");
+        return;
     }
 }
 }
