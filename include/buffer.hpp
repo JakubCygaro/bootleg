@@ -114,6 +114,7 @@ public:
     bool is_cursor_at_begining(void);
     bool is_cursor_at_end(void);
     void toggle_wrap_lines(void);
+    void wrap_lines(bool);
     bool is_wrapping_lines(void) const;
     void toggle_readonly(void);
     bool is_readonly(void) const;

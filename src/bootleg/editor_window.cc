@@ -42,13 +42,11 @@ void boot::EditorWindow::init(Game& game_state)
 
     m_text_buffer->insert_string("Color = BLUE");
     m_text_buffer->set_font_size(30);
-    m_text_buffer->background_color = { 0x1f, 0x1f, 0x1f, 255 };
 
     m_output_buffer->set_font_size(30);
     m_output_buffer->toggle_wrap_lines();
     m_output_buffer->toggle_readonly();
     m_output_buffer->toggle_cursor();
-    m_output_buffer->background_color = { 0x1f, 0x1f, 0x1f, 255 };
     m_camera.position = (Vector3) { 20.0f, 10.0f, 0.0f };
     m_camera.target = { 0, 0, 0 };
     m_camera.up = (Vector3) { 0.0f, 1.0f, 0.0 };
@@ -113,7 +111,8 @@ void boot::EditorWindow::draw(Game& game_state)
                     DrawCube(pos, brick_width, brick_width, brick_width, c);
                 else if (game_state.solution) {
                     const auto scolor = game_state.solution->color_data[nx][ny][nz];
-                    DrawCube(pos, brick_width, brick_width, brick_width, { scolor.r, scolor.g, scolor.b, 80 });
+                    if(scolor.a)
+                        DrawCube(pos, brick_width, brick_width, brick_width, { scolor.r, scolor.g, scolor.b, 80 });
                 }
             }
         }
@@ -147,4 +146,13 @@ void boot::EditorWindow::set_bounds(Rectangle r)
 {
     boot::Window::set_bounds(r);
     update_bounds();
+}
+void boot::EditorWindow::on_config_reload(const Config& conf)
+{
+    if (m_text_buffer) {
+        m_text_buffer->foreground_color = conf.foreground_color;
+        m_text_buffer->background_color = conf.background_color;
+        m_text_buffer->set_font_size(conf.font_size);
+        m_text_buffer->wrap_lines(conf.wrap_lines);
+    }
 }

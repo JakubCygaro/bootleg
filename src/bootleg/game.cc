@@ -19,7 +19,6 @@ extern "C" {
 constexpr const float WINDOW_BAR_HEIGHT = 1. / 30.;
 constexpr const float WINDOW_NAME_FONT_SPACING = 10;
 constexpr const int CUBE_DIMS = 10;
-constexpr const std::string GAME_DATA_PATH = "gamedata.m3pkg";
 
 void boot::Game::init()
 {
@@ -27,9 +26,9 @@ void boot::Game::init()
     cube = { CUBE_DIMS, CUBE_DIMS, CUBE_DIMS };
     init_lua_state();
     MEU3_Error err = NoError;
-    meu3_pack = meu3_load_package(GAME_DATA_PATH.data(), &err);
+    meu3_pack = meu3_load_package(path::GAME_DATA_PATH.data(), &err);
     if (err != NoError) {
-        throw std::runtime_error(std::format("Failed to load gamedata meu3 package at `{}`, error code {}", GAME_DATA_PATH, (int)err));
+        throw std::runtime_error(std::format("Failed to load gamedata meu3 package at `{}`, error code {}", path::GAME_DATA_PATH, (int)err));
     }
     const auto window_bar_h = WINDOW_BAR_HEIGHT * m_dims.y;
     auto w = std::make_unique<boot::EditorWindow>();
@@ -42,6 +41,9 @@ void boot::Game::init()
     auto lw = std::make_unique<boot::LevelSelectWindow>();
     lw->set_bounds(w->get_bounds());
 
+    auto cw = std::make_unique<boot::ConfigWindow>();
+    cw->set_bounds(w->get_bounds());
+
     auto wd = WindowData {
         .win = std::move(lw),
         .name_bounds = {}
@@ -49,12 +51,28 @@ void boot::Game::init()
     this->windows.push_back(std::move(wd));
     wd.win = std::move(w);
     this->windows.push_back(std::move(wd));
+    wd.win = std::move(cw);
+    this->windows.push_back(std::move(wd));
 
     for (auto& window : this->windows) {
         window.win->init(*this);
     }
     m_current_window = 0;
     update_measurements();
+
+    unsigned long long len = 0;
+    if(auto user_conf = (char*)meu3_package_get_data_ptr(meu3_pack, path::USER_CONFIG.data(), &len, &err); user_conf){
+        auto conf = std::string(user_conf, len);
+        reload_configuration(std::move(conf));
+    } else {
+        auto def_conf = (const char*)meu3_package_get_data_ptr(meu3_pack, path::DEF_CONFIG.data(), &len, &err);
+        if (err != NoError) {
+            TraceLog(LOG_ERROR, "Error while trying to get a ref for default config on game init");
+        } else {
+            auto conf = std::string(def_conf, len);
+            reload_configuration(std::move(conf));
+        }
+    }
 }
 static void setup_colors(lua_State* lua)
 {
@@ -219,9 +237,9 @@ void Game::load_level(const Level& lvl, std::string name)
     solution = std::nullopt;
     saved_solution = std::nullopt;
     MEU3_Error err = NoError;
-    const auto saved_path = std::format("player/levels/{}", name);
+    const auto saved_path = std::format("{}/{}", path::USER_SOLUTIONS_DIR, name);
     if (lvl.ty == Level::Type::Lua) {
-        // std::printf("%.*s\n", (int)lvl.data_len, (char*)lvl.data_ptr);
+        std::printf("%.*s\n", (int)lvl.data_len, (char*)lvl.data_ptr);
         init_lua_state();
         auto error = luaL_loadbuffer(m_lua_state, reinterpret_cast<const char*>(lvl.data_ptr), lvl.data_len, "levelgen")
             || lua_pcall(m_lua_state, 0, 0, 0);
@@ -288,10 +306,10 @@ void Game::load_level(const Level& lvl, std::string name)
     }
     cube = CubeData(solution->x, solution->y, solution->z);
     m_current_save_name = name;
-    if(meu3_package_has(meu3_pack, saved_path.data(), &err)){
+    if (meu3_package_has(meu3_pack, saved_path.data(), &err)) {
         auto len = 0ull;
         auto ptr = (char*)meu3_package_get_data_ptr(meu3_pack, saved_path.data(), &len, &err);
-        if(err != NoError){
+        if (err != NoError) {
             TraceLog(LOG_ERROR, "Error while trying to load a saved solution for level `%s`", saved_path.data());
         } else {
             saved_solution = std::string(ptr, len);
@@ -315,18 +333,40 @@ void Game::transition_to(std::string_view window_name)
 }
 void Game::save_solution_for_current_level(std::string&& solution)
 {
-    const auto base_path = "player/levels";
-    const auto current_lvl_path = std::format("{}/{}", base_path, m_current_save_name);
+    const auto current_lvl_path = std::format("{}/{}", path::USER_SOLUTIONS_DIR, m_current_save_name);
     MEU3_Error err = NoError;
     meu3_package_insert(meu3_pack, current_lvl_path.data(), reinterpret_cast<unsigned char*>(solution.data()), solution.size(), &err);
-    if(err != NoError){
+    if (err != NoError) {
         TraceLog(LOG_ERROR, "Error while trying to save solution for level `%s`", m_current_save_name.data());
         return;
     }
-    meu3_write_package(GAME_DATA_PATH.data(), meu3_pack, &err);
-    if(err != NoError){
-        TraceLog(LOG_ERROR, "Error while trying to write package ");
+    save_game_data();
+}
+void Game::save_game_data(void)
+{
+    MEU3_Error err = NoError;
+    meu3_write_package(path::GAME_DATA_PATH.data(), meu3_pack, &err);
+    if (err != NoError) {
+        TraceLog(LOG_ERROR, "Error while trying to save game data ");
         return;
+    }
+}
+void Game::reload_configuration(std::string&& config_source)
+{
+    Config& conf = m_conf;
+    init_lua_state();
+    luaL_dostring(m_lua_state, config_source.data());
+    lua_getglobal(m_lua_state, "ForeColor");
+    conf.foreground_color = decode_color_from_hex(lua_tointeger(m_lua_state, -1));
+    lua_getglobal(m_lua_state, "BackColor");
+    conf.background_color = decode_color_from_hex(lua_tointeger(m_lua_state, -1));
+    lua_getglobal(m_lua_state, "WrapLines");
+    conf.wrap_lines = lua_toboolean(m_lua_state, -1);
+    lua_getglobal(m_lua_state, "FontSize");
+    conf.font_size = lua_tointeger(m_lua_state, -1);
+    lua_settop(m_lua_state, 0);
+    for (auto& [w, b] : windows) {
+        w->on_config_reload(conf);
     }
 }
 }

@@ -30,6 +30,19 @@ namespace colors {
     constexpr const unsigned int CYELLOW = 0xf7ff00ff;
     constexpr const unsigned int CBLACK = 0xffffffff;
 }
+namespace path {
+    inline const std::string GAME_DATA_PATH = "gamedata.m3pkg";
+    inline const std::string DEF_CONFIG = "game/config/config.lua";
+    inline const std::string USER_CONFIG = "player/config.lua";
+    inline const std::string LEVELS_DIR = "game/levels";
+    inline const std::string USER_SOLUTIONS_DIR = "player/levels";
+}
+namespace raw {
+    struct LevelData {
+
+    };
+    LevelData parse_level_data(std::string&& src);
+}
 class Game;
 
 struct Level {
@@ -40,6 +53,12 @@ struct Level {
         Raw
     };
     Type ty;
+};
+struct Config {
+    Color foreground_color = WHITE;
+    Color background_color = BLACK;
+    bool wrap_lines = false;
+    int font_size = 40;
 };
 struct Window {
 protected:
@@ -58,6 +77,7 @@ public:
     {
         return m_bounds;
     }
+    inline virtual void on_config_reload(const Config& conf) {};
     inline virtual ~Window() { };
 };
 
@@ -89,7 +109,7 @@ private:
     lua_State* m_lua_state {};
     size_t m_current_window {};
     std::string m_current_save_name {};
-
+    Config m_conf = {};
 public:
     Font font;
     CubeData cube {};
@@ -117,6 +137,8 @@ public:
     Color color_for(int x, int y, int z);
     void transition_to(std::string_view window_name);
     void save_solution_for_current_level(std::string&& solution);
+    void save_game_data(void);
+    void reload_configuration(std::string&&);
 
 private:
     void init_lua_state(void);
@@ -137,6 +159,7 @@ public:
     virtual const char* get_window_name() override;
     virtual void set_bounds(Rectangle r) override;
     virtual ~EditorWindow();
+    virtual void on_config_reload(const Config& conf) override;
 
 private:
     void update_bounds(void);
@@ -155,7 +178,21 @@ public:
     virtual void draw(Game& game_state) override;
     virtual const char* get_window_name() override;
     virtual void set_bounds(Rectangle r) override;
+    virtual void on_config_reload(const Config& conf) override;
     virtual ~LevelSelectWindow();
+};
+class ConfigWindow final : public Window {
+    std::unique_ptr<bed::TextBuffer> m_config_text_buffer = nullptr;
+
+public:
+    explicit ConfigWindow();
+    virtual void init(Game& game_state) override;
+    virtual void update(Game& game_state) override;
+    virtual void draw(Game& game_state) override;
+    virtual const char* get_window_name() override;
+    virtual void set_bounds(Rectangle r) override;
+    virtual void on_config_reload(const Config& conf) override;
+    virtual ~ConfigWindow();
 };
 }
 #endif

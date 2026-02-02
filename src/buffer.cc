@@ -107,6 +107,10 @@ void TextBuffer::toggle_wrap_lines(void)
     if (m_wrap_lines)
         measure_lines();
 }
+void TextBuffer::wrap_lines(bool b)
+{
+    m_wrap_lines = b;
+}
 bool TextBuffer::is_wrapping_lines(void) const
 {
     return m_wrap_lines;
@@ -535,7 +539,7 @@ void TextBuffer::insert_string(line_t&& str)
 {
     std::string line = {};
     for (const auto c : str) {
-        if (c == '\n'){
+        if (c == '\n') {
             current_line().insert(m_cursor.col, line);
             m_cursor.col += line.length();
             measure_line(m_lines[m_cursor.line]);
@@ -878,7 +882,7 @@ void TextBuffer::update_buffer(void)
     }
     if (IsKeyPressedOrRepeat(KEY_V) && AnySpecialDown(CONTROL) && !m_readonly) {
         const char* clipboard = GetClipboardText();
-        TextBuffer::line_t line {clipboard};
+        TextBuffer::line_t line { clipboard };
         // for (size_t i = 0; clipboard[i] != '\0'; i++) {
         //     if (clipboard[i] == '\n') {
         //         insert_string(std::move(line));

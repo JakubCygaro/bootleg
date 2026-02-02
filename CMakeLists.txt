@@ -88,7 +88,9 @@ add_executable(bootleg
     ${CMAKE_SOURCE_DIR}/src/main.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/editor_window.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/level_select_window.cc
+    ${CMAKE_SOURCE_DIR}/src/bootleg/config_window.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/game.cc
+    ${CMAKE_SOURCE_DIR}/src/bootleg/raw.cc
 )
 target_link_libraries(bootleg
     PRIVATE bedl
