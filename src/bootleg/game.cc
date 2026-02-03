@@ -274,6 +274,13 @@ void Game::load_level(const Level& lvl, std::string name)
         for (int x = 0; x < solution->x; x++) {
             for (int y = 0; y < solution->y; y++) {
                 for (int z = 0; z < solution->z; z++) {
+                    lua_pushinteger(m_lua_state, solution->x);
+                    lua_setglobal(m_lua_state, "X");
+                    lua_pushinteger(m_lua_state, solution->y);
+                    lua_setglobal(m_lua_state, "Y");
+                    lua_pushinteger(m_lua_state, solution->z);
+                    lua_setglobal(m_lua_state, "Z");
+
                     lua_pushinteger(m_lua_state, 0);
                     lua_setglobal(m_lua_state, "Color");
                     lua_pushinteger(m_lua_state, x);
