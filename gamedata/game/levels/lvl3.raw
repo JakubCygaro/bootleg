@@ -3,15 +3,15 @@ X = 3
 Y = 3
 Z = 3
 data:
-0xff0000ff 0xff0000ff 0xff0000ff
-0xff0000ff 0xff0000ff 0xff0000ff
-0xff0000ff 0xff0000ff 0xff0000ff
+yellow yellow yellow
+yellow pink yellow
+yellow yellow yellow
 
-0xff0000ff 0xff0000ff 0xff0000ff
-0xff0000ff 0xff0000ff 0xff0000ff
-0xff0000ff 0xff0000ff 0xff0000ff
+yellow pink yellow
+pink pink pink
+yellow pink yellow
 
-0xff0000ff 0xff0000ff 0xff0000ff
-0xff0000ff 0xff0000ff 0xff0000ff
-0xff0000ff 0xff0000ff 0xff0000ff
+yellow yellow yellow
+yellow pink yellow
+yellow yellow yellow
 

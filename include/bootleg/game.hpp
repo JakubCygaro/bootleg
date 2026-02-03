@@ -29,6 +29,7 @@ namespace colors {
     constexpr const unsigned int CORANGE = 0xffb300ff;
     constexpr const unsigned int CYELLOW = 0xf7ff00ff;
     constexpr const unsigned int CBLACK = 0xffffffff;
+    constexpr const unsigned int CPINK = 0xffffffff;
 }
 namespace path {
     inline const std::string GAME_DATA_PATH = "gamedata.m3pkg";
