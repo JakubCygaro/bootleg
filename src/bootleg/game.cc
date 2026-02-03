@@ -187,7 +187,7 @@ void boot::Game::draw()
     }
     EndDrawing();
 }
-static Color decode_color_from_hex(unsigned int hex_color)
+Color boot::decode_color_from_hex(unsigned int hex_color)
 {
     Color ret = {};
     ret.a |= hex_color;
@@ -221,7 +221,7 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
                 lua_getglobal(m_lua_state, "Color");
                 unsigned int c = lua_tointeger(m_lua_state, -1);
                 lua_settop(m_lua_state, 0);
-                cube.color_data[x][y][z] = decode_color_from_hex(c);
+                cube.color_data[x][y][z] = boot::decode_color_from_hex(c);
             }
         }
     }
@@ -239,7 +239,7 @@ void Game::load_level(const Level& lvl, std::string name)
     MEU3_Error err = NoError;
     const auto saved_path = std::format("{}/{}", path::USER_SOLUTIONS_DIR, name);
     if (lvl.ty == Level::Type::Lua) {
-        std::printf("%.*s\n", (int)lvl.data_len, (char*)lvl.data_ptr);
+        // std::printf("%.*s\n", (int)lvl.data_len, (char*)lvl.data_ptr);
         init_lua_state();
         auto error = luaL_loadbuffer(m_lua_state, reinterpret_cast<const char*>(lvl.data_ptr), lvl.data_len, "levelgen")
             || lua_pcall(m_lua_state, 0, 0, 0);
@@ -302,7 +302,9 @@ void Game::load_level(const Level& lvl, std::string name)
         }
 
     } else {
-        TraceLog(LOG_DEBUG, "Raw level data WIP");
+        auto rawlvl = std::string((char*)lvl.data_ptr, lvl.data_len);
+        auto lvld = raw::parse_level_data(std::move(rawlvl));
+        solution = lvld.solution;
     }
     cube = CubeData(solution->x, solution->y, solution->z);
     m_current_save_name = name;

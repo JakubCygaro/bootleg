@@ -37,12 +37,7 @@ namespace path {
     inline const std::string LEVELS_DIR = "game/levels";
     inline const std::string USER_SOLUTIONS_DIR = "player/levels";
 }
-namespace raw {
-    struct LevelData {
-
-    };
-    LevelData parse_level_data(std::string&& src);
-}
+Color decode_color_from_hex(unsigned int hex_color);
 class Game;
 
 struct Level {
@@ -99,6 +94,13 @@ struct CubeData {
     {
     }
 };
+namespace raw {
+    struct LevelData {
+        int X{}, Y{}, Z{};
+        CubeData solution{};
+    };
+    LevelData parse_level_data(std::string&& src);
+}
 
 class Game {
 public:

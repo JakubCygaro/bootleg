@@ -538,11 +538,11 @@ void TextBuffer::insert_character(char_t c)
 void TextBuffer::insert_string(line_t&& str)
 {
     std::string line = {};
+    auto start = m_cursor.line;
     for (const auto c : str) {
         if (c == '\n') {
             current_line().insert(m_cursor.col, line);
             m_cursor.col += line.length();
-            measure_line(m_lines[m_cursor.line]);
             insert_newline();
             line = {};
         } else if (c == '\r') {
@@ -554,9 +554,12 @@ void TextBuffer::insert_string(line_t&& str)
         }
     }
     current_line().insert(m_cursor.col, line);
-    measure_line(m_lines[m_cursor.line]);
     m_cursor.col += line.length();
 
+    auto end = m_cursor.line;
+    for(auto i = start; i <= end; i++){
+        measure_line(m_lines[i]);
+    }
     // current_line().insert(m_cursor.col, str);
     // m_cursor.col += len;
     update_total_height();

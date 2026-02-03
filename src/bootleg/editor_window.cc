@@ -73,16 +73,18 @@ void boot::EditorWindow::update(Game& game_state)
         || (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && cube_clicked);
     if (cube_clicked) {
         UpdateCamera(&m_camera, CAMERA_THIRD_PERSON);
-    } else if (IsKeyPressed(KEY_ENTER) && AnySpecialDown(SHIFT)) {
+    }
+    if (IsKeyPressed(KEY_ENTER) && AnySpecialDown(SHIFT)) {
         m_output_buffer->clear();
         if (auto err = game_state.load_source(m_text_buffer->get_contents_as_string()); err) {
             auto errstr = *err;
             m_output_buffer->insert_string(std::move(errstr));
         }
-    } else if (IsKeyPressed(KEY_S) && AnySpecialDown(CONTROL)) {
-        game_state.save_solution_for_current_level(m_text_buffer->get_contents_as_string());
     } else {
         this->m_text_buffer->update_buffer();
+    }
+    if (IsKeyPressed(KEY_S) && AnySpecialDown(CONTROL)) {
+        game_state.save_solution_for_current_level(m_text_buffer->get_contents_as_string());
     }
     this->m_output_buffer->update_buffer();
 }
@@ -96,21 +98,21 @@ void boot::EditorWindow::draw(Game& game_state)
     BeginMode3D(m_camera);
     const auto& cube = game_state.cube;
     const auto brick_width = 1.0;
-    for (int x = -(cube.x / 2); x < (cube.x / 2); x++) {
-        for (int y = brick_width / 2; y < brick_width + cube.y; y++) {
-            for (int z = -(cube.z / 2); z < (cube.z / 2); z++) {
-                auto nx = x + (cube.x / 2);
-                auto ny = y - brick_width / 2;
-                auto nz = z + cube.z / 2;
+    for (int x = 0; x < cube.x; x++) {
+        for (int y = 0; y < cube.y; y++) {
+            for (int z = 0; z < cube.z; z++) {
+                auto nx = x - ((cube.x - 1) * brick_width / 2);
+                auto nz = z - ((cube.z - 1) * brick_width / 2);
+                auto ny = y + brick_width / 2;
                 Color c = game_state.color_for(
-                    nx,
-                    ny,
-                    nz);
-                Vector3 pos = (Vector3) { (float)x, (float)y, (float)z };
+                    x,
+                    y,
+                    z);
+                Vector3 pos = (Vector3) { (float)nx, (float)ny, (float)nz };
                 if (c.a == 255)
                     DrawCube(pos, brick_width, brick_width, brick_width, c);
                 else if (game_state.solution) {
-                    const auto scolor = game_state.solution->color_data[nx][ny][nz];
+                    const auto scolor = game_state.solution->color_data[x][y][z];
                     if(scolor.a)
                         DrawCube(pos, brick_width, brick_width, brick_width, { scolor.r, scolor.g, scolor.b, 80 });
                 }
