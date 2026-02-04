@@ -77,8 +77,7 @@ void boot::Game::init()
 static void setup_colors(lua_State* lua)
 {
     const auto add_color = [=](const char* name, unsigned int hex) {
-        lua_pushinteger(lua, hex);
-        lua_setglobal(lua, name);
+        boot::lua_setglobalv(lua, name, hex);
     };
     add_color("BLANK", boot::colors::CBLANK);
     add_color("RED", boot::colors::CRED);
@@ -97,14 +96,10 @@ void boot::Game::init_lua_state(void)
     }
     m_lua_state = luaL_newstate();
     luaL_openlibs(m_lua_state);
-    lua_pushinteger(m_lua_state, 0);
-    lua_setglobal(m_lua_state, "x");
-    lua_pushinteger(m_lua_state, 0);
-    lua_setglobal(m_lua_state, "y");
-    lua_pushinteger(m_lua_state, 0);
-    lua_setglobal(m_lua_state, "z");
-    lua_pushinteger(m_lua_state, 0);
-    lua_setglobal(m_lua_state, "Color");
+    boot::lua_setglobalv(m_lua_state, "x", 0);
+    boot::lua_setglobalv(m_lua_state, "y", 0);
+    boot::lua_setglobalv(m_lua_state, "z", 0);
+    boot::lua_setglobalv(m_lua_state, "Color", 0);
     setup_colors(m_lua_state);
     lua_settop(m_lua_state, 0);
 }
@@ -204,24 +199,21 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
     for (int x = 0; x < cube.x; x++) {
         for (int y = 0; y < cube.y; y++) {
             for (int z = 0; z < cube.z; z++) {
-                lua_pushinteger(m_lua_state, 0);
-                lua_setglobal(m_lua_state, "Color");
-                lua_pushinteger(m_lua_state, x);
-                lua_setglobal(m_lua_state, "x");
-                lua_pushinteger(m_lua_state, y);
-                lua_setglobal(m_lua_state, "y");
-                lua_pushinteger(m_lua_state, z);
-                lua_setglobal(m_lua_state, "z");
+                boot::lua_setglobalv(m_lua_state, "Color", 0);
+                boot::lua_setglobalv(m_lua_state, "x", x);
+                boot::lua_setglobalv(m_lua_state, "y", y);
+                boot::lua_setglobalv(m_lua_state, "z", z);
                 if (luaL_dostring(m_lua_state, source.data())) {
                     auto* err = lua_tostring(m_lua_state, -1);
                     std::printf("pcall failed : %s\n",
                         err);
                     return err;
                 }
-                lua_getglobal(m_lua_state, "Color");
-                unsigned int c = lua_tointeger(m_lua_state, -1);
-                lua_settop(m_lua_state, 0);
-                cube.color_data[x][y][z] = boot::decode_color_from_hex(c);
+                auto c = boot::lua_getglobalv<unsigned int>(m_lua_state, "Color");
+                // lua_getglobal(m_lua_state, "Color");
+                // unsigned int c = lua_tointeger(m_lua_state, -1);
+                // lua_settop(m_lua_state, 0);
+                cube.color_data[x][y][z] = boot::decode_color_from_hex(c.value_or(0));
             }
         }
     }
@@ -248,47 +240,35 @@ void Game::load_level(const Level& lvl, std::string name)
         //     goto crash_and_burn;
         // }
         int x {}, y {}, z {};
-        lua_getglobal(m_lua_state, "X");
-        if (!lua_isinteger(m_lua_state, -1)) {
-            TraceLog(LOG_ERROR, "Error while running lua levelgen script: X was not an integer (%s)", lua_typename(m_lua_state, -1));
+        const auto get_dim = [&](const char* name, int& out)->bool{
+            auto v = boot::lua_getglobalv<int>(m_lua_state, name);
+            if(!v) {
+                TraceLog(LOG_ERROR, "Error while running lua levelgen script: variable '%s' was not an integer", name);
+                return false;
+            }
+            out = v.value();
+            return true;
+        };
+        if(!get_dim("X", x))
             goto crash_and_burn;
-        }
-        x = lua_tointeger(m_lua_state, -1);
-        lua_getglobal(m_lua_state, "Y");
-        if (!lua_isinteger(m_lua_state, -1)) {
-            TraceLog(LOG_ERROR, "Error while running lua levelgen script: Y was not an integer");
+        if(!get_dim("Y", y))
             goto crash_and_burn;
-        }
-        y = lua_tointeger(m_lua_state, -1);
-        lua_getglobal(m_lua_state, "Z");
-        if (!lua_isinteger(m_lua_state, -1)) {
-            TraceLog(LOG_ERROR, "Error while running lua levelgen script: Z was not an integer");
+        if(!get_dim("Z", z))
             goto crash_and_burn;
-        }
-        z = lua_tointeger(m_lua_state, -1);
-        lua_settop(m_lua_state, 0);
-
         TraceLog(LOG_DEBUG, "X = %d Y = %d Z = %d", x, y, z);
 
         solution = CubeData(x, y, z);
         for (int x = 0; x < solution->x; x++) {
             for (int y = 0; y < solution->y; y++) {
                 for (int z = 0; z < solution->z; z++) {
-                    lua_pushinteger(m_lua_state, solution->x);
-                    lua_setglobal(m_lua_state, "X");
-                    lua_pushinteger(m_lua_state, solution->y);
-                    lua_setglobal(m_lua_state, "Y");
-                    lua_pushinteger(m_lua_state, solution->z);
-                    lua_setglobal(m_lua_state, "Z");
+                    boot::lua_setglobalv(m_lua_state, "X", solution->x);
+                    boot::lua_setglobalv(m_lua_state, "Y", solution->y);
+                    boot::lua_setglobalv(m_lua_state, "Z", solution->z);
 
-                    lua_pushinteger(m_lua_state, 0);
-                    lua_setglobal(m_lua_state, "Color");
-                    lua_pushinteger(m_lua_state, x);
-                    lua_setglobal(m_lua_state, "x");
-                    lua_pushinteger(m_lua_state, y);
-                    lua_setglobal(m_lua_state, "y");
-                    lua_pushinteger(m_lua_state, z);
-                    lua_setglobal(m_lua_state, "z");
+                    boot::lua_setglobalv(m_lua_state, "Color", 0);
+                    boot::lua_setglobalv(m_lua_state, "x", x);
+                    boot::lua_setglobalv(m_lua_state, "y", y);
+                    boot::lua_setglobalv(m_lua_state, "z", z);
 
                     lua_getglobal(m_lua_state, "Generate");
                     if (!lua_isfunction(m_lua_state, -1)) {
@@ -299,11 +279,8 @@ void Game::load_level(const Level& lvl, std::string name)
                         TraceLog(LOG_ERROR, "Error while running lua levelgen script\n%s", lua_tostring(m_lua_state, -1));
                         goto crash_and_burn;
                     }
-
-                    lua_getglobal(m_lua_state, "Color");
-                    unsigned int c = lua_tointeger(m_lua_state, -1);
-                    lua_settop(m_lua_state, 0);
-                    solution->color_data[x][y][z] = decode_color_from_hex(c);
+                    auto c = boot::lua_getglobalv<unsigned int>(m_lua_state, "Color");
+                    solution->color_data[x][y][z] = decode_color_from_hex(c.value_or(0));
                 }
             }
         }
@@ -365,15 +342,18 @@ void Game::reload_configuration(std::string&& config_source)
     Config& conf = m_conf;
     init_lua_state();
     luaL_dostring(m_lua_state, config_source.data());
-    lua_getglobal(m_lua_state, "ForeColor");
-    conf.foreground_color = decode_color_from_hex(lua_tointeger(m_lua_state, -1));
-    lua_getglobal(m_lua_state, "BackColor");
-    conf.background_color = decode_color_from_hex(lua_tointeger(m_lua_state, -1));
-    lua_getglobal(m_lua_state, "WrapLines");
-    conf.wrap_lines = lua_toboolean(m_lua_state, -1);
-    lua_getglobal(m_lua_state, "FontSize");
-    conf.font_size = lua_tointeger(m_lua_state, -1);
-    lua_settop(m_lua_state, 0);
+    if(auto c = boot::lua_getglobalv<unsigned int>(m_lua_state, "ForeColor"); c){
+        conf.foreground_color = decode_color_from_hex(*c);
+    }
+    if(auto c = boot::lua_getglobalv<unsigned int>(m_lua_state, "BackColor"); c){
+        conf.background_color = decode_color_from_hex(*c);
+    }
+    if(auto b = boot::lua_getglobalv<bool>(m_lua_state, "WrapLines"); b){
+        conf.wrap_lines = *b;
+    }
+    if(auto i = boot::lua_getglobalv<int>(m_lua_state, "FontSize"); i){
+        conf.font_size = *i;
+    }
     for (auto& [w, b] : windows) {
         w->on_config_reload(conf);
     }

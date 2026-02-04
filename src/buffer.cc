@@ -20,6 +20,7 @@ void TextBuffer::set_font(Font font)
 {
     m_font = font;
     update_font_measurements();
+    measure_lines();
 }
 int TextBuffer::get_font_size() const
 {
@@ -29,6 +30,7 @@ void TextBuffer::set_font_size(int sz)
 {
     m_font_size = sz;
     update_font_measurements();
+    measure_lines();
 }
 int TextBuffer::get_spacing() const
 {
@@ -38,6 +40,7 @@ void TextBuffer::set_spacing(int s)
 {
     m_spacing = s;
     update_font_measurements();
+    measure_lines();
 }
 float TextBuffer::get_width() const
 {

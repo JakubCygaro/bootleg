@@ -3,6 +3,7 @@
 #include <buffer.hpp>
 #include <cstddef>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +40,57 @@ namespace path {
     inline const std::string USER_SOLUTIONS_DIR = "player/levels";
 }
 Color decode_color_from_hex(unsigned int hex_color);
+
+template <typename T>
+inline void lua_setglobalv(lua_State* L, const char* name, const T& val)
+{
+    if constexpr (std::is_same_v<T, bool>) {
+        lua_pushboolean(L, val);
+    } else if constexpr (std::is_integral_v<T>) {
+        lua_pushinteger(L, val);
+    } else if constexpr (std::is_floating_point_v<T>) {
+        lua_pushnumber(L, val);
+    } else if constexpr (std::is_same_v<T, const char*>){
+        lua_pushstring(L, val);
+    } else {
+        static_assert(false, "Unsupported type T");
+    }
+    lua_setglobal(L, name);
+}
+template <typename T>
+inline std::optional<T> lua_getglobalv(lua_State* L, const char* name)
+{
+    lua_getglobal(L, name);
+    bool check = false;
+    if constexpr (std::is_same_v<T, bool>) {
+        check = lua_isboolean(L, -1);
+    } else if constexpr (std::is_integral_v<T>) {
+        check = lua_isinteger(L, -1);
+    } else if constexpr (std::is_floating_point_v<T>) {
+        check = lua_isnumber(L, -1);
+    } else if constexpr (std::is_same_v<T, const char*>){
+        check = lua_isstring(L, -1);
+    } else {
+        static_assert(false, "Unsupported type T");
+    }
+    if(!check){
+        lua_settop(L, 0);
+        return std::nullopt;
+    }
+    T ret;
+    if constexpr (std::is_same_v<T, bool>) {
+        ret = lua_toboolean(L, -1);
+    } else if constexpr (std::is_integral_v<T>) {
+        ret = lua_tointeger(L, -1);
+    } else if constexpr (std::is_floating_point_v<T>) {
+        ret = lua_tonumber(L, -1);
+    } else if constexpr (std::is_same_v<T, const char*>){
+        ret = lua_tostring(L, -1);
+    }
+    lua_settop(L, 0);
+    return ret;
+}
+
 class Game;
 
 struct Level {
@@ -73,7 +125,7 @@ public:
     {
         return m_bounds;
     }
-    inline virtual void on_config_reload(const Config& conf) {};
+    inline virtual void on_config_reload(const Config& conf) { };
     inline virtual ~Window() { };
 };
 
@@ -97,8 +149,8 @@ struct CubeData {
 };
 namespace raw {
     struct LevelData {
-        int X{}, Y{}, Z{};
-        CubeData solution{};
+        int X {}, Y {}, Z {};
+        CubeData solution {};
     };
     LevelData parse_level_data(std::string&& src);
 }
@@ -113,13 +165,14 @@ private:
     size_t m_current_window {};
     std::string m_current_save_name {};
     Config m_conf = {};
+
 public:
     Font font;
     CubeData cube {};
     std::optional<CubeData> solution {};
     MEU3_PACKAGE* meu3_pack {};
     std::vector<Level> levels {};
-    std::optional<std::string> saved_solution{};
+    std::optional<std::string> saved_solution {};
     inline Game(float w, float h)
         : m_dims(w, h)
     {
