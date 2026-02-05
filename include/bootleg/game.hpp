@@ -73,7 +73,7 @@ namespace lua {
                 check = lua_isinteger(L, -1);
             } else if constexpr (std::is_floating_point_v<T>) {
                 check = lua_isnumber(L, -1);
-            } else if constexpr (std::is_same_v<T, const char*>) {
+            } else if constexpr (std::is_same_v<T, const char*> || std::is_same_v<T, std::string>) {
                 check = lua_isstring(L, -1);
             } else {
                 static_assert(false, "Unsupported type T");
@@ -91,14 +91,13 @@ namespace lua {
                 ret = lua_tonumber(L, -1);
             } else if constexpr (std::is_same_v<T, const char*>) {
                 ret = lua_tostring(L, -1);
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                auto tmp = lua_tostring(L, -1);
+                ret = std::string(tmp);
             }
             lua_settop(L, 0);
             return ret;
         }
-        // template <typename Tp, typename T = std::optional<Tp>>
-        // inline std::optional<T> genericget(lua_State* L){
-        //     return genericget<Tp>(L);
-        // }
     }
     template <int RetCount, typename... Args>
     inline void genericpcall(lua_State* L, const char* function, Args const&... args)
@@ -161,8 +160,6 @@ namespace lua {
         template <
             /// type of the incoming tuple that will hold the return values of the previous call
             typename Out,
-            // /// type of the tuple Out tuple without std::optional
-            // typename In = Out,
             typename std::size_t N,
             typename Index = std::make_index_sequence<N>>
         inline void set_return_values(Out& ret, lua_State* L)

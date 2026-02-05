@@ -45,8 +45,10 @@ void LevelSelectWindow::init(Game& game_state)
 
     for (auto i = 1;; i++) {
         const auto lvl_path = std::format("{}/lvl{}.lua", path::LEVELS_DIR, i);
-        TraceLog(LOG_DEBUG, "Checking level `%s`", lvl_path.data());
+        const auto raw_lvl_path = std::format("{}/lvl{}.raw", path::LEVELS_DIR, i);
         MEU3_Error err = NoError;
+        Level lvl = {};
+        TraceLog(LOG_DEBUG, "Checking lua level `%s`", lvl_path.data());
         auto has = meu3_package_has(game_state.meu3_pack, lvl_path.data(), &err);
         if (err != NoError) {
             TraceLog(LOG_ERROR, "Error while loading level `%s`, error code: %d", lvl_path.data(), err);
@@ -54,17 +56,11 @@ void LevelSelectWindow::init(Game& game_state)
         }
         if (has) {
             TraceLog(LOG_DEBUG, "Found level `%s`", lvl_path.data());
-            Level lvl = {};
             lvl.data_ptr = meu3_package_get_data_ptr(game_state.meu3_pack, lvl_path.data(), &lvl.data_len, &err);
             lvl.ty = Level::Type::Lua;
-            game_state.levels.push_back(std::move(lvl));
-            auto display_name = std::format("LEVEL_{:02}", i);
-            m_lvl_name_idx_map[display_name] = game_state.levels.size() - 1;
-            m_lvl_text_buffer->insert_line(std::format("{}{}", display_name_padding, display_name));
             continue;
         }
-        const auto raw_lvl_path = std::format("{}/lvl{}.raw", path::LEVELS_DIR, i);
-        TraceLog(LOG_DEBUG, "Checking level `%s`", raw_lvl_path.data());
+        TraceLog(LOG_DEBUG, "Checking raw level `%s`", raw_lvl_path.data());
         has = meu3_package_has(game_state.meu3_pack, raw_lvl_path.data(), &err);
         if (err != NoError) {
             TraceLog(LOG_ERROR, "Error while loading level `%s`, error code: %d", raw_lvl_path.data(), err);
@@ -72,16 +68,15 @@ void LevelSelectWindow::init(Game& game_state)
         }
         if (has) {
             TraceLog(LOG_DEBUG, "Found level `%s`", raw_lvl_path.data());
-            Level lvl = {};
             lvl.data_ptr = meu3_package_get_data_ptr(game_state.meu3_pack, raw_lvl_path.data(), &lvl.data_len, &err);
             lvl.ty = Level::Type::Raw;
-            game_state.levels.push_back(std::move(lvl));
-            auto display_name = std::format("LEVEL_{:02}", i);
-            m_lvl_name_idx_map[display_name] = game_state.levels.size() - 1;
-            m_lvl_text_buffer->insert_line(std::format("{}{}", display_name_padding, display_name));
         } else {
             break;
         }
+        game_state.levels.push_back(std::move(lvl));
+        auto display_name = std::format("LEVEL_{:02}", i);
+        m_lvl_name_idx_map[display_name] = game_state.levels.size() - 1;
+        m_lvl_text_buffer->insert_line(std::format("{}{}", display_name_padding, display_name));
     }
 }
 void LevelSelectWindow::update(Game& game_state)
