@@ -2,6 +2,7 @@
 #define BOOT_GAME_HPP
 #include <buffer.hpp>
 #include <cstddef>
+#include <cstring>
 #include <format>
 #include <string_view>
 #include <tuple>
@@ -20,19 +21,39 @@ extern "C" {
 #include <vector>
 
 #ifndef STRINGIFY
-#define STRINGIFY(TOKEN) #TOKEN
+#define STRINGIFY(TOKEN) #TOKEN##sv
 #endif
 namespace boot {
 namespace colors {
-    constexpr const unsigned int CBLANK = 0x00000000;
-    constexpr const unsigned int CRED = 0xff0000ff;
-    constexpr const unsigned int CGREEN = 0x00ff00ff;
-    constexpr const unsigned int CBLUE = 0x0000ffff;
-    constexpr const unsigned int CMAGENTA = 0xff00ffff;
-    constexpr const unsigned int CORANGE = 0xffb300ff;
-    constexpr const unsigned int CYELLOW = 0xf7ff00ff;
-    constexpr const unsigned int CBLACK = 0xffffffff;
-    constexpr const unsigned int CPINK = 0xffffffff;
+    using namespace std::string_view_literals;
+    struct case_insensitive_eq : public std::equal_to<std::string_view> {
+        constexpr bool operator()(const std::string_view& lhs, const std::string_view& rhs) const
+        {
+            const auto pred = [](char a, char b) {
+                return std::tolower(a) == std::tolower(b);
+            };
+            return std::ranges::equal(lhs, rhs, pred);
+        }
+    };
+    inline static const std::unordered_map<
+        std::string_view,
+        Color,
+        std::hash<std::string_view>,
+        case_insensitive_eq>
+        COLORMAP = { {
+            { STRINGIFY(BLANK), BLANK },
+            { STRINGIFY(RED), RED },
+            { STRINGIFY(GREEN), GREEN },
+            { STRINGIFY(BLUE), BLUE },
+            { STRINGIFY(MAGENTA), MAGENTA },
+            { STRINGIFY(ORANGE), ORANGE },
+            { STRINGIFY(YELLOW), YELLOW },
+            { STRINGIFY(PINK), PINK },
+            { STRINGIFY(BLACK), BLACK },
+            { STRINGIFY(WHITE), WHITE },
+            { STRINGIFY(GRAY), GRAY },
+            { STRINGIFY(BROWN), BROWN },
+        } };
 }
 namespace path {
     inline const std::string GAME_DATA_PATH = "gamedata.m3pkg";
@@ -153,7 +174,7 @@ namespace lua {
         };
 
         template <typename T>
-        struct StripOptional<std::optional<T>>{
+        struct StripOptional<std::optional<T>> {
             using value_type = T;
         };
 
@@ -178,7 +199,7 @@ namespace lua {
         };
     }
 
-    template<typename... Elements>
+    template <typename... Elements>
     using return_t = std::tuple<Elements...>;
 
     template <

@@ -76,17 +76,17 @@ void boot::Game::init()
 }
 static void setup_colors(lua_State* lua)
 {
-    const auto add_color = [=](const char* name, unsigned int hex) {
-        boot::lua::setglobalv(lua, name, hex);
+    const auto add_color = [=](const std::string_view name, const Color& col) {
+        static unsigned char hex[4] = {};
+        hex[3] = col.r;
+        hex[2] = col.g;
+        hex[1] = col.b;
+        hex[0] = col.a;
+        boot::lua::setglobalv(lua, name.data(), *reinterpret_cast<unsigned int*>(&hex));
     };
-    add_color("BLANK", boot::colors::CBLANK);
-    add_color("RED", boot::colors::CRED);
-    add_color("GREEN", boot::colors::CGREEN);
-    add_color("BLUE", boot::colors::CBLUE);
-    add_color("MAGENTA", boot::colors::CMAGENTA);
-    add_color("ORANGE", boot::colors::CORANGE);
-    add_color("BLACK", boot::colors::CBLACK);
-    add_color("YELLOW", boot::colors::CYELLOW);
+    for( const auto& [k, v] : boot::colors::COLORMAP ){
+        add_color(k, v);
+    }
 }
 void boot::Game::init_lua_state(void)
 {

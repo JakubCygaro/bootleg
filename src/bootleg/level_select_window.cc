@@ -58,20 +58,20 @@ void LevelSelectWindow::init(Game& game_state)
             TraceLog(LOG_DEBUG, "Found level `%s`", lvl_path.data());
             lvl.data_ptr = meu3_package_get_data_ptr(game_state.meu3_pack, lvl_path.data(), &lvl.data_len, &err);
             lvl.ty = Level::Type::Lua;
-            continue;
-        }
-        TraceLog(LOG_DEBUG, "Checking raw level `%s`", raw_lvl_path.data());
-        has = meu3_package_has(game_state.meu3_pack, raw_lvl_path.data(), &err);
-        if (err != NoError) {
-            TraceLog(LOG_ERROR, "Error while loading level `%s`, error code: %d", raw_lvl_path.data(), err);
-            continue;
-        }
-        if (has) {
-            TraceLog(LOG_DEBUG, "Found level `%s`", raw_lvl_path.data());
-            lvl.data_ptr = meu3_package_get_data_ptr(game_state.meu3_pack, raw_lvl_path.data(), &lvl.data_len, &err);
-            lvl.ty = Level::Type::Raw;
         } else {
-            break;
+            TraceLog(LOG_DEBUG, "Checking raw level `%s`", raw_lvl_path.data());
+            has = meu3_package_has(game_state.meu3_pack, raw_lvl_path.data(), &err);
+            if (err != NoError) {
+                TraceLog(LOG_ERROR, "Error while loading level `%s`, error code: %d", raw_lvl_path.data(), err);
+                continue;
+            }
+            if (has) {
+                TraceLog(LOG_DEBUG, "Found level `%s`", raw_lvl_path.data());
+                lvl.data_ptr = meu3_package_get_data_ptr(game_state.meu3_pack, raw_lvl_path.data(), &lvl.data_len, &err);
+                lvl.ty = Level::Type::Raw;
+            } else {
+                break;
+            }
         }
         game_state.levels.push_back(std::move(lvl));
         auto display_name = std::format("LEVEL_{:02}", i);

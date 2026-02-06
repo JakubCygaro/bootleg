@@ -20,13 +20,6 @@ enum struct ParseState {
     READDATA,
 };
 using namespace std::string_view_literals;
-static const std::unordered_map<std::string_view, unsigned int> COLORMAP = {
-    { "red"sv, boot::colors::CRED },
-    { "yellow"sv, boot::colors::CYELLOW },
-    { "green"sv, boot::colors::CGREEN },
-    { "blue"sv, boot::colors::CBLUE },
-    { "pink"sv, boot::colors::CPINK },
-};
 
 using kvp = std::pair<std::string, std::string>;
 
@@ -85,8 +78,8 @@ static Color read_color(const std::string_view sv)
         std::from_chars(sv.begin() + 2, sv.end(), v, 16);
         return boot::decode_color_from_hex(v);
     }
-    if(COLORMAP.contains(sv)){
-        return boot::decode_color_from_hex(COLORMAP.at(sv));
+    if(boot::colors::COLORMAP.contains(sv)){
+        return boot::colors::COLORMAP.at(sv);
     }
 
     return BLANK;
