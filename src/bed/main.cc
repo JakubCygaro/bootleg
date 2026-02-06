@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <format>
+#include <iostream>
 #include <raylib.h>
 #include "buffer.hpp"
 
@@ -59,7 +60,14 @@ int main(int argc, char** args)
             _text_buffer.set_width(GetScreenWidth());
             _text_buffer.set_height(GetScreenHeight());
         }
-        _text_buffer.update_buffer();
+        if(IsKeyPressed(KEY_I) && IsKeyDown(KEY_LEFT_CONTROL)){
+            for(auto it = _text_buffer.begin(); it != _text_buffer.end(); it++){
+                std::cout << *it;
+            }
+            std::cout << std::endl;
+        } else {
+            _text_buffer.update_buffer();
+        }
         BeginDrawing();
         ClearBackground(BLACK);
         _text_buffer.draw();

@@ -1,8 +1,6 @@
 #ifndef BUFFER_HPP
 #define BUFFER_HPP
 
-#include "utf8.hpp"
-#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -15,6 +13,7 @@
 #define AnySpecialDown(SPECIAL_KEY) (IsKeyDown(KEY_LEFT_##SPECIAL_KEY) || IsKeyDown(KEY_RIGHT_##SPECIAL_KEY))
 
 namespace bed {
+struct TextBuffer;
 
 struct TextBuffer {
     using char_t = char;
@@ -62,6 +61,29 @@ struct TextBuffer {
             else
                 return (c > this->end && c <= this->start);
         }
+    };
+    class text_buffer_iterator;
+private:
+    text_buffer_iterator create_begin_iterator(void) const;
+    text_buffer_iterator create_end_iterator(void) const;
+public:
+    class text_buffer_iterator {
+        const std::vector<TextBuffer::Line>* m_lines = nullptr;
+        size_t m_line {};
+        size_t m_col {};
+        size_t m_sz{};
+
+        text_buffer_iterator(const std::vector<TextBuffer::Line>* lines);
+        static text_buffer_iterator end(const std::vector<TextBuffer::Line>* lines);
+        friend text_buffer_iterator TextBuffer::create_begin_iterator(void) const;
+        friend text_buffer_iterator TextBuffer::create_end_iterator(void) const;
+    public:
+        const TextBuffer::char_t& operator*() const;
+        void operator++();
+        void operator++(int);
+        bool operator==(const text_buffer_iterator& other) const;
+        bool operator!=(const text_buffer_iterator& other) const;
+        Cursor current_cursor_pos(void) const;
     };
 
 private:
@@ -194,6 +216,10 @@ private:
     void update_selection(void);
     void update_scroll_v(float v);
     float get_glyph_width(const Font& font, int codepoint) const;
+
+public:
+    text_buffer_iterator begin(void) const;
+    text_buffer_iterator end(void) const;
 };
 }
 

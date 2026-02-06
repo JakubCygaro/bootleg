@@ -72,6 +72,7 @@ target_compile_options(cppfeatures
 
 add_library(bedl STATIC
     ${CMAKE_SOURCE_DIR}/src/buffer.cc
+    ${CMAKE_SOURCE_DIR}/src/text_buffer_iterator.cc
     ${CMAKE_SOURCE_DIR}/src/utf8.cc
 )
 target_link_libraries(bedl

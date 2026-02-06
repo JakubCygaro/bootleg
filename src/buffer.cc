@@ -1,6 +1,7 @@
 #include "buffer.hpp"
+#include <algorithm>
 #include <cmath>
-#include <print>
+#include <utf8.hpp>
 
 namespace bed {
 
@@ -560,7 +561,7 @@ void TextBuffer::insert_string(line_t&& str)
     m_cursor.col += line.length();
 
     auto end = m_cursor.line;
-    for(auto i = start; i <= end; i++){
+    for (auto i = start; i <= end; i++) {
         measure_line(m_lines[i]);
     }
     // current_line().insert(m_cursor.col, str);
@@ -1025,5 +1026,21 @@ TextBuffer::line_t TextBuffer::get_contents_as_string(void) const
         ret.push_back('\n');
     }
     return ret;
+}
+TextBuffer::text_buffer_iterator TextBuffer::create_begin_iterator(void) const
+{
+    return text_buffer_iterator(&m_lines);
+}
+TextBuffer::text_buffer_iterator TextBuffer::create_end_iterator(void) const
+{
+    return text_buffer_iterator::end(&m_lines);
+}
+TextBuffer::text_buffer_iterator TextBuffer::begin(void) const
+{
+    return create_begin_iterator();
+}
+TextBuffer::text_buffer_iterator TextBuffer::end(void) const
+{
+    return create_end_iterator();
 }
 }
