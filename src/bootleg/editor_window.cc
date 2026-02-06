@@ -94,6 +94,7 @@ void boot::EditorWindow::draw(Game& game_state)
     this->m_text_buffer->draw();
     this->m_output_buffer->draw();
     BeginTextureMode(m_render_tex);
+    BeginBlendMode(BLEND_ALPHA);
     ClearBackground(WHITE);
     BeginMode3D(m_camera);
     const auto& cube = game_state.cube;
@@ -125,6 +126,7 @@ void boot::EditorWindow::draw(Game& game_state)
     DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 20, 0 }), GREEN);
     DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 0, 20 }), BLUE);
     EndMode3D();
+    EndBlendMode();
     EndTextureMode();
     Rectangle src = {
         .x = 0,
