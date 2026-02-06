@@ -344,8 +344,14 @@ void Game::reload_configuration(std::string&& config_source)
     if (auto c = lua::getglobalv<unsigned int>(m_lua_state, "ForeColor"); c) {
         conf.foreground_color = decode_color_from_hex(*c);
     }
+    if (auto c = lua::getglobalv<std::string>(m_lua_state, "ForeColor"); c && boot::colors::COLORMAP.contains(*c)) {
+        conf.foreground_color = boot::colors::COLORMAP.at(*c);
+    }
     if (auto c = lua::getglobalv<unsigned int>(m_lua_state, "BackColor"); c) {
         conf.background_color = decode_color_from_hex(*c);
+    }
+    if (auto c = lua::getglobalv<std::string>(m_lua_state, "BackColor"); c && boot::colors::COLORMAP.contains(*c)) {
+        conf.background_color = boot::colors::COLORMAP.at(*c);
     }
     if (auto b = lua::getglobalv<bool>(m_lua_state, "WrapLines"); b) {
         conf.wrap_lines = *b;
