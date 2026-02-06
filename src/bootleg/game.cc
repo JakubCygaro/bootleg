@@ -199,6 +199,10 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
     for (int x = 0; x < cube.x; x++) {
         for (int y = 0; y < cube.y; y++) {
             for (int z = 0; z < cube.z; z++) {
+                lua::setglobalv(m_lua_state, "X", cube.x);
+                lua::setglobalv(m_lua_state, "Y", cube.y);
+                lua::setglobalv(m_lua_state, "Z", cube.z);
+
                 lua::setglobalv(m_lua_state, "Color", 0);
                 lua::setglobalv(m_lua_state, "x", x);
                 lua::setglobalv(m_lua_state, "y", y);
