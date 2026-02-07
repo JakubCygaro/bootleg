@@ -1,5 +1,4 @@
 #include "buffer.hpp"
-#include "utf8.hpp"
 namespace bed {
 using tit = TextBuffer::text_buffer_iterator;
 tit::text_buffer_iterator(const std::vector<TextBuffer::Line>* lines)

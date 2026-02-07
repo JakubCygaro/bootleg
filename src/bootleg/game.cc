@@ -196,6 +196,7 @@ Color boot::decode_color_from_hex(unsigned int hex_color)
 }
 std::optional<std::string> boot::Game::load_source(const std::string& source)
 {
+    level_completed = solution.has_value();
     for (int x = 0; x < cube.x; x++) {
         for (int y = 0; y < cube.y; y++) {
             for (int z = 0; z < cube.z; z++) {
@@ -215,6 +216,14 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
                 }
                 auto c = lua::getglobalv<unsigned int>(m_lua_state, "Color");
                 cube.color_data[x][y][z] = boot::decode_color_from_hex(c.value_or(0));
+                const auto color_eq = [](const Color& a, const Color& b)->bool{
+                    return a.r == b.r &&
+                        a.b == b.b &&
+                        a.g == b.g &&
+                        a.a == b.a;
+                };
+                if(solution.has_value())
+                    level_completed &= color_eq(cube.color_data[x][y][z], solution->color_data[x][y][z]);
             }
         }
     }
@@ -316,9 +325,19 @@ void Game::transition_to(std::string_view window_name)
         }
     }
 }
-void Game::save_solution_for_current_level(std::string&& solution)
+void Game::save_source_for_current_level(std::string&& solution)
 {
     const auto current_lvl_path = std::format("{}/{}", path::USER_SOLUTIONS_DIR, m_current_save_name);
+    MEU3_Error err = NoError;
+    meu3_package_insert(meu3_pack, current_lvl_path.data(), reinterpret_cast<unsigned char*>(solution.data()), solution.size(), &err);
+    if (err != NoError) {
+        TraceLog(LOG_ERROR, "Error while trying to save source for level `%s`", m_current_save_name.data());
+        return;
+    }
+    save_game_data();
+}
+void Game::save_solution_for_current_level(std::string&& solution){
+    const auto current_lvl_path = std::format("{}/{}", path::USER_COMPLETED_DIR, m_current_save_name);
     MEU3_Error err = NoError;
     meu3_package_insert(meu3_pack, current_lvl_path.data(), reinterpret_cast<unsigned char*>(solution.data()), solution.size(), &err);
     if (err != NoError) {

@@ -94,7 +94,8 @@ void LevelSelectWindow::update(Game& game_state)
             m_lvl_menu_buffer->insert_newline();
             m_lvl_menu_buffer->insert_line("[LOAD LEVEL]");
             MEU3_Error err = NoError;
-            if (meu3_package_has(game_state.meu3_pack, std::format("{}/lvl{}.lua", path::USER_SOLUTIONS_DIR, m_current_level + 1).data(), &err)) {
+            if (meu3_package_has(game_state.meu3_pack,
+                    std::format("{}/lvl{}.lua", path::USER_SOLUTIONS_DIR, m_current_level + 1).data(), &err)) {
                 m_lvl_menu_buffer->insert_line("[CLEAR SAVED SOLUTION]");
             }
             if (err != NoError) {

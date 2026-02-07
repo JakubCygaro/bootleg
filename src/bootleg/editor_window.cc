@@ -80,11 +80,15 @@ void boot::EditorWindow::update(Game& game_state)
             auto errstr = *err;
             m_output_buffer->insert_string(std::move(errstr));
         }
+        if(game_state.level_completed){
+            m_output_buffer->insert_string("Level solved!");
+            game_state.save_solution_for_current_level(m_text_buffer->get_contents_as_string());
+        }
     } else {
         this->m_text_buffer->update_buffer();
     }
     if (IsKeyPressed(KEY_S) && AnySpecialDown(CONTROL)) {
-        game_state.save_solution_for_current_level(m_text_buffer->get_contents_as_string());
+        game_state.save_source_for_current_level(m_text_buffer->get_contents_as_string());
     }
     this->m_output_buffer->update_buffer();
 }

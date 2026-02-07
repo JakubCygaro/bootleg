@@ -1043,4 +1043,7 @@ TextBuffer::text_buffer_iterator TextBuffer::end(void) const
 {
     return create_end_iterator();
 }
+void TextBuffer::set_syntax_parser(process_syntax_fn fn){
+
+}
 }

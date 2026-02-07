@@ -61,6 +61,7 @@ namespace path {
     inline const std::string USER_CONFIG = "player/config.lua";
     inline const std::string LEVELS_DIR = "game/levels";
     inline const std::string USER_SOLUTIONS_DIR = "player/levels";
+    inline const std::string USER_COMPLETED_DIR = "player/completed";
 }
 Color decode_color_from_hex(unsigned int hex_color);
 
@@ -302,6 +303,7 @@ public:
     MEU3_PACKAGE* meu3_pack {};
     std::vector<Level> levels {};
     std::optional<std::string> saved_solution {};
+    bool level_completed = false;
     inline Game(float w, float h)
         : m_dims(w, h)
     {
@@ -321,6 +323,7 @@ public:
     void load_level(const Level& lvl, std::string name);
     Color color_for(int x, int y, int z);
     void transition_to(std::string_view window_name);
+    void save_source_for_current_level(std::string&& solution);
     void save_solution_for_current_level(std::string&& solution);
     void save_game_data(void);
     void reload_configuration(std::string&&);

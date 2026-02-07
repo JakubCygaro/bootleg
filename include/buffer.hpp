@@ -4,9 +4,11 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <optional>
 #include <raylib.h>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #define IsKeyPressedOrRepeat(KEY) (IsKeyPressed(KEY) || IsKeyPressedRepeat(KEY))
@@ -51,6 +53,7 @@ struct TextBuffer {
             return (*this > b) || (*this == b);
         }
     };
+    using syntax_data_t = std::unordered_map<Cursor, Color>;
     struct Selection {
         Cursor start {};
         Cursor end {};
@@ -63,20 +66,24 @@ struct TextBuffer {
         }
     };
     class text_buffer_iterator;
+    using process_syntax_fn = std::function<void(syntax_data_t&, text_buffer_iterator)>;
+
 private:
     text_buffer_iterator create_begin_iterator(void) const;
     text_buffer_iterator create_end_iterator(void) const;
+
 public:
     class text_buffer_iterator {
         const std::vector<TextBuffer::Line>* m_lines = nullptr;
         size_t m_line {};
         size_t m_col {};
-        size_t m_sz{};
+        size_t m_sz {};
 
         text_buffer_iterator(const std::vector<TextBuffer::Line>* lines);
         static text_buffer_iterator end(const std::vector<TextBuffer::Line>* lines);
         friend text_buffer_iterator TextBuffer::create_begin_iterator(void) const;
         friend text_buffer_iterator TextBuffer::create_end_iterator(void) const;
+
     public:
         const TextBuffer::char_t& operator*() const;
         void operator++();
@@ -109,6 +116,8 @@ private:
     bool m_readonly = false;
     bool m_has_focus = false;
     bool m_draw_cursor = true;
+
+    process_syntax_fn m_syntax_parse_fn = nullptr;
 
 public:
     Color foreground_color = WHITE;
@@ -206,6 +215,8 @@ public:
     void update_buffer(void);
     /// this function ensures that the viewport contains the cursor (the cursor is visible on the screen)
     void update_viewport_to_cursor(void);
+
+    void set_syntax_parser(process_syntax_fn fn);
 
 private:
     std::optional<TextBuffer::Cursor> mouse_as_cursor_position(Vector2 point);
