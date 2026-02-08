@@ -1,5 +1,6 @@
 #include "meu3.h"
 #include <bootleg/game.hpp>
+#include <bootleg/lua_generics.hpp>
 #include <cstdio>
 #include <format>
 #include <optional>
@@ -321,6 +322,7 @@ void Game::transition_to(std::string_view window_name)
     for (size_t i = 0; i < windows.size(); i++) {
         if (window_name == windows[i].win->get_window_name()) {
             m_current_window = i;
+            windows[i].win->on_transition(*this);
             return;
         }
     }
@@ -336,15 +338,24 @@ void Game::save_source_for_current_level(std::string&& solution)
     }
     save_game_data();
 }
-void Game::save_solution_for_current_level(std::string&& solution){
+bool Game::save_solution_for_current_level(std::string&& solution){
     const auto current_lvl_path = std::format("{}/{}", path::USER_COMPLETED_DIR, m_current_save_name);
     MEU3_Error err = NoError;
+
+    //check if a solution does not already exists and is shorter than the current one
+    unsigned long long len = 0;
+    if(auto sol = meu3_package_get_data_ptr(meu3_pack, current_lvl_path.data(), &len, &err);
+            sol && len <= solution.length()){
+        return false;
+    }
+    err = NoError;
     meu3_package_insert(meu3_pack, current_lvl_path.data(), reinterpret_cast<unsigned char*>(solution.data()), solution.size(), &err);
     if (err != NoError) {
         TraceLog(LOG_ERROR, "Error while trying to save solution for level `%s`", m_current_save_name.data());
-        return;
+        return false;
     }
     save_game_data();
+    return true;
 }
 void Game::save_game_data(void)
 {

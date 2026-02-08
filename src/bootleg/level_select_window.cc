@@ -4,8 +4,13 @@
 #include <meu3.h>
 #include <print>
 #include <raylib.h>
+#include <string_view>
+#include <unordered_map>
 
 constexpr const std::string display_name_padding = " - ";
+constexpr const std::string_view LOAD_LEVEL = "[LOAD LEVEL]";
+constexpr const std::string_view CLEAR_SAVED_SOLUTION = "[CLEAR SAVED SOLUTION]";
+constexpr const std::string_view LOAD_COMPLETION = "[LOAD COMPLETION]";
 
 namespace boot {
 LevelSelectWindow::LevelSelectWindow()
@@ -78,6 +83,10 @@ void LevelSelectWindow::init(Game& game_state)
         m_lvl_name_idx_map[display_name] = game_state.levels.size() - 1;
         m_lvl_text_buffer->insert_line(std::format("{}{}", display_name_padding, display_name));
     }
+    using namespace std::placeholders;
+    m_menu_handlers[LOAD_LEVEL] = std::bind(&LevelSelectWindow::handle_level_load, this, _1);
+    m_menu_handlers[CLEAR_SAVED_SOLUTION] = std::bind(&LevelSelectWindow::handle_clear_solution, this, _1);
+    m_menu_handlers[LOAD_COMPLETION] = std::bind(&LevelSelectWindow::handle_load_completion, this, _1);
 }
 void LevelSelectWindow::update(Game& game_state)
 {
@@ -92,14 +101,23 @@ void LevelSelectWindow::update(Game& game_state)
             m_lvl_menu_buffer->clear();
             m_lvl_menu_buffer->insert_line(std::format("# {}", name));
             m_lvl_menu_buffer->insert_newline();
-            m_lvl_menu_buffer->insert_line("[LOAD LEVEL]");
+            m_lvl_menu_buffer->insert_line(into<std::string>(LOAD_LEVEL));
             MEU3_Error err = NoError;
             if (meu3_package_has(game_state.meu3_pack,
                     std::format("{}/lvl{}.lua", path::USER_SOLUTIONS_DIR, m_current_level + 1).data(), &err)) {
-                m_lvl_menu_buffer->insert_line("[CLEAR SAVED SOLUTION]");
+                m_lvl_menu_buffer->insert_newline();
+                m_lvl_menu_buffer->insert_line(into<std::string>(CLEAR_SAVED_SOLUTION));
             }
             if (err != NoError) {
-                TraceLog(LOG_ERROR, "Error while checking solution for level %d", m_current_level + 1);
+                TraceLog(LOG_ERROR, "Error while checking saved source for level %d", m_current_level + 1);
+            }
+            err = NoError;
+            if (meu3_package_has(game_state.meu3_pack,
+                    std::format("{}/lvl{}.lua", path::USER_COMPLETED_DIR, m_current_level + 1).data(), &err)) {
+                m_lvl_menu_buffer->insert_line(into<std::string>(LOAD_COMPLETION));
+            }
+            if (err != NoError) {
+                TraceLog(LOG_ERROR, "Error while checking saved solution for level %d", m_current_level + 1);
             }
         }
     } else {
@@ -108,24 +126,45 @@ void LevelSelectWindow::update(Game& game_state)
     if (m_current_level != -1) {
         m_lvl_menu_buffer->update_buffer();
         if ((IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) && m_lvl_menu_buffer->has_focus()) {
-            switch (m_lvl_menu_buffer->get_line_number()) {
-            case 2:
-                game_state.load_level(game_state.levels[m_current_level], std::format("lvl{}.lua", m_current_level + 1));
-                game_state.transition_to("editor");
-                break;
-            case 3:
-                MEU3_Error err = NoError;
-                if (meu3_package_remove(game_state.meu3_pack,
-                        std::format("{}/lvl{}.lua", path::USER_SOLUTIONS_DIR, m_current_level + 1).data(), &err)) {
-                    m_lvl_menu_buffer->delete_line(3);
-                }
-                if (err != NoError) {
-                    TraceLog(LOG_ERROR, "Error while deleting saved solution for level %d", m_current_level + 1);
-                }
-                game_state.save_game_data();
-                break;
+            const auto& line = m_lvl_menu_buffer->current_line();
+            if (m_menu_handlers.contains(line)) {
+                m_menu_handlers[line](game_state);
             }
         }
+    }
+}
+void LevelSelectWindow::handle_level_load(Game& game_state)
+{
+    game_state.load_level(game_state.levels[m_current_level], std::format("lvl{}.lua", m_current_level + 1));
+    game_state.transition_to("editor");
+}
+void LevelSelectWindow::handle_clear_solution(Game& game_state)
+{
+    MEU3_Error err = NoError;
+    meu3_package_remove(
+        game_state.meu3_pack,
+        std::format("{}/lvl{}.lua",
+            path::USER_SOLUTIONS_DIR,
+            m_current_level + 1)
+            .data(),
+        &err);
+    if (err != NoError) {
+        TraceLog(LOG_ERROR, "Error while deleting saved solution for level %d", m_current_level + 1);
+    }
+    game_state.save_game_data();
+}
+void LevelSelectWindow::handle_load_completion(Game& game_state)
+{
+    unsigned long long len = 0;
+    MEU3_Error err = NoError;
+    if (auto p = meu3_package_get_data_ptr(game_state.meu3_pack,
+            std::format("{}/lvl{}.lua", path::USER_SOLUTIONS_DIR, m_current_level + 1).data(),
+            &len,
+            &err);
+        p) {
+        game_state.load_level(game_state.levels[m_current_level], std::format("lvl{}.lua", m_current_level + 1));
+        game_state.saved_solution = std::string(reinterpret_cast<char*>(p), len);
+        game_state.transition_to("editor");
     }
 }
 void LevelSelectWindow::draw(Game& game_state)

@@ -19,6 +19,12 @@ void boot::EditorWindow::update_bounds(void)
         .width = (this->m_bounds.width / 2) - (m_bounds.width / 2 * BUFFER_MARGIN),
         .height = this->m_bounds.height / 2,
     };
+    m_slider.set_bounds({
+        .x = m_cube_bounds.x,
+        .y = m_cube_bounds.y,
+        .width = m_cube_bounds.width * 0.05f,
+        .height = m_cube_bounds.height,
+    });
     if (m_text_buffer) {
         Rectangle buffer_bounds = {
             .x = m_bounds.x + m_bounds.width / 2 * BUFFER_MARGIN,
@@ -54,6 +60,9 @@ void boot::EditorWindow::init(Game& game_state)
     m_camera.projection = CAMERA_PERSPECTIVE;
     m_render_tex = LoadRenderTexture(m_render_tex_dims.x, m_render_tex_dims.y);
     SetTextureFilter(m_render_tex.texture, TEXTURE_FILTER_ANISOTROPIC_4X);
+    m_slider = { {} };
+    m_slider.bar_color = Color { 0x1f, 0x1f, 0x1f, 80 };
+    m_slider.slider_color = YELLOW;
     update_bounds();
 }
 boot::EditorWindow::~EditorWindow()
@@ -63,7 +72,7 @@ boot::EditorWindow::~EditorWindow()
 void boot::EditorWindow::update(Game& game_state)
 {
     static bool cube_clicked = false;
-    if(game_state.saved_solution){
+    if (game_state.saved_solution) {
         m_text_buffer->clear();
         m_text_buffer->insert_string(std::move(*game_state.saved_solution));
         game_state.saved_solution = std::nullopt;
@@ -80,9 +89,15 @@ void boot::EditorWindow::update(Game& game_state)
             auto errstr = *err;
             m_output_buffer->insert_string(std::move(errstr));
         }
-        if(game_state.level_completed){
+        if (game_state.level_completed) {
             m_output_buffer->insert_string("Level solved!");
-            game_state.save_solution_for_current_level(m_text_buffer->get_contents_as_string());
+            auto sol = m_text_buffer->get_contents_as_string();
+            const size_t len = sol.length();
+            auto ret = game_state.save_solution_for_current_level(std::move(sol));
+            if (ret) {
+                auto msg = std::format("[NEW SMALLEST ({} bytes) SOLUTION SAVED]", len);
+                m_output_buffer->insert_string(std::move(msg));
+            }
         }
     } else {
         this->m_text_buffer->update_buffer();
@@ -90,6 +105,7 @@ void boot::EditorWindow::update(Game& game_state)
     if (IsKeyPressed(KEY_S) && AnySpecialDown(CONTROL)) {
         game_state.save_source_for_current_level(m_text_buffer->get_contents_as_string());
     }
+    this->m_slider.update();
     this->m_output_buffer->update_buffer();
 }
 void boot::EditorWindow::draw(Game& game_state)
@@ -118,7 +134,7 @@ void boot::EditorWindow::draw(Game& game_state)
                     DrawCube(pos, brick_width, brick_width, brick_width, c);
                 else if (game_state.solution) {
                     const auto scolor = game_state.solution->color_data[x][y][z];
-                    if(scolor.a)
+                    if (scolor.a)
                         DrawCube(pos, brick_width, brick_width, brick_width, { scolor.r, scolor.g, scolor.b, 80 });
                 }
             }
@@ -144,6 +160,7 @@ void boot::EditorWindow::draw(Game& game_state)
         Vector2Zero(),
         0,
         WHITE);
+    this->m_slider.draw();
 }
 const char* boot::EditorWindow::get_window_name()
 {
@@ -163,4 +180,9 @@ void boot::EditorWindow::on_config_reload(const Config& conf)
         m_text_buffer->set_font_size(conf.font_size);
         m_text_buffer->wrap_lines(conf.wrap_lines);
     }
+}
+void boot::EditorWindow::on_transition(Game& game_state)
+{
+    if (m_output_buffer)
+        m_output_buffer->clear();
 }
