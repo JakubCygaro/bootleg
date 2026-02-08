@@ -2,6 +2,7 @@
 #define BUFFER_HPP
 
 #include <cassert>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
@@ -52,8 +53,16 @@ struct TextBuffer {
         {
             return (*this > b) || (*this == b);
         }
+        struct HashFn {
+            std::size_t operator()(const Cursor& cursor) const noexcept
+            {
+                auto h1 = std::hash<long>()(cursor.line);
+                auto h2 = std::hash<long>()(cursor.col);
+                return h1 ^ h2;
+            }
+        };
     };
-    using syntax_data_t = std::unordered_map<Cursor, Color>;
+    using syntax_data_t = std::unordered_map<Cursor, Color, Cursor::HashFn>;
     struct Selection {
         Cursor start {};
         Cursor end {};
@@ -66,7 +75,7 @@ struct TextBuffer {
         }
     };
     class text_buffer_iterator;
-    using process_syntax_fn = std::function<void(syntax_data_t&, text_buffer_iterator)>;
+    using process_syntax_fn = std::function<void(syntax_data_t&, text_buffer_iterator, const text_buffer_iterator)>;
 
 private:
     text_buffer_iterator create_begin_iterator(void) const;
@@ -118,6 +127,7 @@ private:
     bool m_draw_cursor = true;
 
     process_syntax_fn m_syntax_parse_fn = nullptr;
+    syntax_data_t m_syntax_data {};
 
 public:
     Color foreground_color = WHITE;

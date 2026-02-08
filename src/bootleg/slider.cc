@@ -50,6 +50,9 @@ double Slider::get_min(void) const
 {
     return m_min_val;
 }
+double Slider::get_percentage(void) const{
+    return m_prop;
+}
 void Slider::set_bounds(Rectangle bounds)
 {
     m_bounds = bounds;
@@ -62,9 +65,10 @@ constexpr const float slider_sz = 0.1f;
 void Slider::update()
 {
     const auto mouse = GetMousePosition();
-    if (!CheckCollisionPointRec(mouse, m_bounds))
-        return;
-    if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+    static bool active = false;
+    active = (CheckCollisionPointRec(mouse, m_bounds) && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+        || (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && active);
+    if (!active)
         return;
     const float slider_v = slider_sz * m_bounds.height;
     const float slider_h = slider_sz * m_bounds.width;

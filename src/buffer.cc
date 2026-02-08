@@ -538,6 +538,8 @@ void TextBuffer::insert_character(char_t c)
     current_line()[m_cursor.col++] = static_cast<char_t>(c);
     update_scroll_h();
     measure_line(m_lines[m_cursor.line]);
+    if(m_syntax_parse_fn)
+        m_syntax_parse_fn(m_syntax_data, begin(), end());
 }
 void TextBuffer::insert_string(line_t&& str)
 {
@@ -702,6 +704,7 @@ void TextBuffer::draw(void)
     // for selection checking
     TextBuffer::Cursor _cursor = {};
     Vector2 pos = { m_bounds.x - (m_wrap_lines ? 0 : m_scroll_h), m_bounds.y - m_scroll_v };
+    Color fc = foreground_color;
     for (std::size_t linen = 0; linen < get_line_count(); linen++) {
         auto& current_line = m_lines[linen];
         for (size_t col = 0; col < current_line.contents.size();) {
@@ -724,6 +727,9 @@ void TextBuffer::draw(void)
                 };
                 DrawRectangleRec(cursor_line, foreground_color);
             }
+            if(m_syntax_parse_fn && m_syntax_data.contains(_cursor)){
+                fc = m_syntax_data[_cursor];
+            }
             _cursor.col = col + 1;
             _cursor.line = linen;
             if (get_selection().has_value() && get_selection()->is_cursor_within(_cursor) && !skip_draws) {
@@ -734,9 +740,11 @@ void TextBuffer::draw(void)
                     .height = f_line_advance
                 };
                 DrawRectangleRec(glyph, foreground_color);
+
+
                 DrawTextCodepoint(m_font, c, pos, m_font_size, background_color);
             } else if (!skip_draws) {
-                DrawTextCodepoint(m_font, c, pos, m_font_size, foreground_color);
+                DrawTextCodepoint(m_font, c, pos, m_font_size, fc);
             }
             pos.x += glyph_width + m_glyph_spacing;
             col += csz;
@@ -1044,6 +1052,6 @@ TextBuffer::text_buffer_iterator TextBuffer::end(void) const
     return create_end_iterator();
 }
 void TextBuffer::set_syntax_parser(process_syntax_fn fn){
-
+    m_syntax_parse_fn = fn;
 }
 }

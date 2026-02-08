@@ -8,6 +8,9 @@
 
 constexpr const float BUFFER_MARGIN = .05;
 
+using buffer_t = bed::TextBuffer;
+static void process_syntax(buffer_t::syntax_data_t& syntax, buffer_t::text_buffer_iterator tit, const buffer_t::text_buffer_iterator end);
+
 boot::EditorWindow::EditorWindow()
 {
 }
@@ -60,9 +63,10 @@ void boot::EditorWindow::init(Game& game_state)
     m_camera.projection = CAMERA_PERSPECTIVE;
     m_render_tex = LoadRenderTexture(m_render_tex_dims.x, m_render_tex_dims.y);
     SetTextureFilter(m_render_tex.texture, TEXTURE_FILTER_ANISOTROPIC_4X);
-    m_slider = { {} };
+    m_slider = { {}, 0, 1000, 1000 };
     m_slider.bar_color = Color { 0x1f, 0x1f, 0x1f, 80 };
     m_slider.slider_color = YELLOW;
+    m_text_buffer->set_syntax_parser(process_syntax);
     update_bounds();
 }
 boot::EditorWindow::~EditorWindow()
@@ -119,8 +123,9 @@ void boot::EditorWindow::draw(Game& game_state)
     BeginMode3D(m_camera);
     const auto& cube = game_state.cube;
     const auto brick_width = 1.0;
+    const int layer = cube.y * m_slider.get_percentage() + 1;
     for (int x = 0; x < cube.x; x++) {
-        for (int y = 0; y < cube.y; y++) {
+        for (int y = 0; y < cube.y && y < layer; y++) {
             for (int z = 0; z < cube.z; z++) {
                 auto nx = x - ((cube.x - 1) * brick_width / 2);
                 auto nz = z - ((cube.z - 1) * brick_width / 2);
@@ -185,4 +190,31 @@ void boot::EditorWindow::on_transition(Game& game_state)
 {
     if (m_output_buffer)
         m_output_buffer->clear();
+}
+
+static Color process_token(const std::string_view lit){
+    if(lit == "(" || lit == ")")
+        return YELLOW;
+    return WHITE;
+}
+
+static void process_syntax(
+    buffer_t::syntax_data_t& syntax,
+    buffer_t::text_buffer_iterator tit,
+    const buffer_t::text_buffer_iterator end)
+{
+    std::string buf;
+    buf.reserve(20);
+    buffer_t::Cursor pos = tit.current_cursor_pos();
+    for (; tit != end; tit++) {
+        if(!std::isspace(*tit)){
+            buf.push_back(*tit);
+        } else {
+            syntax[pos] = process_token(buf);
+            pos = tit.current_cursor_pos();
+            buf.clear();
+        }
+    }
+    syntax[pos] = process_token(buf);
+
 }

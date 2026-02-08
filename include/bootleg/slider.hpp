@@ -30,6 +30,7 @@ public:
     double get_max(void) const;
     void set_min(double min);
     double get_min(void) const;
+    double get_percentage(void) const;
     void set_bounds(Rectangle bounds);
     Rectangle get_bounds(void) const;
     void update();
