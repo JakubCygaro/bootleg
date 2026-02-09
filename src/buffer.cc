@@ -1,6 +1,7 @@
 #include "buffer.hpp"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <utf8.hpp>
 
 namespace bed {
@@ -422,6 +423,7 @@ void TextBuffer::delete_line(size_t line_num)
     clamp_cursor();
     update_total_height();
     update_viewport_to_cursor();
+    update_syntax();
 }
 void TextBuffer::delete_lines(size_t start, size_t end)
 {
@@ -433,6 +435,7 @@ void TextBuffer::delete_lines(size_t start, size_t end)
     clamp_cursor();
     update_total_height();
     update_viewport_to_cursor();
+    update_syntax();
 }
 void TextBuffer::clear(void)
 {
@@ -442,6 +445,7 @@ void TextBuffer::clear(void)
     measure_lines();
     update_total_height();
     update_viewport_to_cursor();
+    m_syntax_data.clear();
 }
 bool TextBuffer::concat_backward(void)
 {
@@ -453,6 +457,7 @@ bool TextBuffer::concat_backward(void)
         update_total_height();
         update_scroll_h();
         measure_line(m_lines[m_cursor.line]);
+        update_syntax();
         return true;
     }
     return false;
@@ -465,6 +470,7 @@ bool TextBuffer::concat_forward(void)
         update_total_height();
         update_scroll_h();
         measure_line(m_lines[m_cursor.line]);
+        update_syntax();
         return true;
     }
     return false;
@@ -482,6 +488,7 @@ void TextBuffer::delete_characters_back(unsigned long amount)
     update_total_height();
     update_scroll_h();
     measure_line(m_lines[m_cursor.line]);
+    update_syntax();
 }
 void TextBuffer::delete_characters_forward(unsigned long amount)
 {
@@ -498,6 +505,7 @@ void TextBuffer::delete_characters_forward(unsigned long amount)
     update_total_height();
     update_scroll_h();
     measure_line(m_lines[m_cursor.line]);
+    update_syntax();
 }
 void TextBuffer::delete_words_back(unsigned long amount)
 {
@@ -513,6 +521,7 @@ void TextBuffer::delete_words_back(unsigned long amount)
     update_scroll_v(0);
     update_scroll_h();
     measure_line(m_lines[m_cursor.line]);
+    update_syntax();
 }
 void TextBuffer::delete_words_forward(unsigned long amount)
 {
@@ -530,6 +539,7 @@ void TextBuffer::delete_words_forward(unsigned long amount)
     update_scroll_v(0);
     update_scroll_h();
     measure_line(m_lines[m_cursor.line]);
+    update_syntax();
 }
 void TextBuffer::insert_character(char_t c)
 {
@@ -538,8 +548,7 @@ void TextBuffer::insert_character(char_t c)
     current_line()[m_cursor.col++] = static_cast<char_t>(c);
     update_scroll_h();
     measure_line(m_lines[m_cursor.line]);
-    if(m_syntax_parse_fn)
-        m_syntax_parse_fn(m_syntax_data, begin(), end());
+    update_syntax();
 }
 void TextBuffer::insert_string(line_t&& str)
 {
@@ -571,6 +580,7 @@ void TextBuffer::insert_string(line_t&& str)
     update_total_height();
     update_viewport_to_cursor();
     // measure_line(m_lines[m_cursor.line]);
+    update_syntax();
 }
 void TextBuffer::insert_line(line_t&& str)
 {
@@ -582,6 +592,7 @@ void TextBuffer::insert_line(line_t&& str)
     measure_line(m_lines[m_cursor.line]);
     insert_newline();
     measure_line(m_lines[m_cursor.line]);
+    update_syntax();
 }
 void TextBuffer::jump_cursor_to_top(bool with_selection)
 {
@@ -652,6 +663,16 @@ float TextBuffer::get_glyph_width(const Font& font, int codepoint) const
         ? m_font.recs[idx].width * f_scale_factor
         : m_font.glyphs[idx].advanceX * f_scale_factor;
     return glyph_width;
+}
+void TextBuffer::update_syntax(void)
+{
+    std::printf("update_syntax\n");
+    m_syntax_data.clear();
+    if (m_syntax_parse_fn)
+        m_syntax_parse_fn(m_syntax_data, this->begin(), this->end());
+    for (const auto& [k, v] : m_syntax_data) {
+         std::printf("{ %ld %ld } : (0x%x%x%x%x)\n", k.line, k.col, v.r, v.g, v.b, v.a);
+    }
 }
 float TextBuffer::measure_line_till_cursor(void)
 {
@@ -727,7 +748,7 @@ void TextBuffer::draw(void)
                 };
                 DrawRectangleRec(cursor_line, foreground_color);
             }
-            if(m_syntax_parse_fn && m_syntax_data.contains(_cursor)){
+            if (m_syntax_parse_fn && m_syntax_data.contains(_cursor)) {
                 fc = m_syntax_data[_cursor];
             }
             _cursor.col = col + 1;
@@ -740,7 +761,6 @@ void TextBuffer::draw(void)
                     .height = f_line_advance
                 };
                 DrawRectangleRec(glyph, foreground_color);
-
 
                 DrawTextCodepoint(m_font, c, pos, m_font_size, background_color);
             } else if (!skip_draws) {
@@ -1051,7 +1071,8 @@ TextBuffer::text_buffer_iterator TextBuffer::end(void) const
 {
     return create_end_iterator();
 }
-void TextBuffer::set_syntax_parser(process_syntax_fn fn){
+void TextBuffer::set_syntax_parser(process_syntax_fn fn)
+{
     m_syntax_parse_fn = fn;
 }
 }

@@ -10,15 +10,20 @@ tit tit::end(const std::vector<TextBuffer::Line>* lines)
     t.m_line = t.m_sz;
     return t;
 }
-const TextBuffer::char_t& tit::operator*() const
+TextBuffer::char_t tit::operator*()
 {
+    if(issue_newline){
+        issue_newline = false;
+        return '\n';
+    }
     return (*m_lines)[m_line].contents[m_col];
 }
 void tit::operator++()
 {
-    if (++m_col >= (*m_lines)[m_line].contents.size()) {
+    if (m_line < m_sz && ++m_col >= (*m_lines)[m_line].contents.size() && !issue_newline) {
         m_line++;
         m_col = 0;
+        issue_newline = true;
     }
 }
 void tit::operator++(int)

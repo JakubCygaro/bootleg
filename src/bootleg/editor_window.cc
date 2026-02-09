@@ -1,10 +1,12 @@
 #include <bootleg/game.hpp>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <print>
 #include <raylib.h>
 #include <raymath.h>
 #include <string>
+#include <string_view>
 
 constexpr const float BUFFER_MARGIN = .05;
 
@@ -192,10 +194,20 @@ void boot::EditorWindow::on_transition(Game& game_state)
         m_output_buffer->clear();
 }
 
-static Color process_token(const std::string_view lit){
-    if(lit == "(" || lit == ")")
-        return YELLOW;
-    return WHITE;
+namespace tokens {
+    static const Color DIGIT = boot::decode_color_from_hex(0xB4CCA1FF);
+    static const Color ROUND_PAREN = boot::decode_color_from_hex(0xDBD996FF);
+    static const Color KEYWORD = boot::decode_color_from_hex(0xC185BCFF);
+
+};
+
+static std::optional<Color> match_literal(const std::string_view lit){
+    std::cout << lit << std::endl;
+    if(lit == "Color")
+        return BLUE;
+    else if(lit == "then" || lit == "else" || lit == "if" || lit == "elseif" || lit == "end")
+        return tokens::KEYWORD;
+    return std::nullopt;
 }
 
 static void process_syntax(
@@ -203,18 +215,60 @@ static void process_syntax(
     buffer_t::text_buffer_iterator tit,
     const buffer_t::text_buffer_iterator end)
 {
+    bool dig_has_dot = false;
     std::string buf;
     buf.reserve(20);
     buffer_t::Cursor pos = tit.current_cursor_pos();
-    for (; tit != end; tit++) {
-        if(!std::isspace(*tit)){
-            buf.push_back(*tit);
-        } else {
-            syntax[pos] = process_token(buf);
-            pos = tit.current_cursor_pos();
+    for (; tit != end;) {
+        dig_has_dot = false;
+        pos = tit.current_cursor_pos();
+        buffer_t::char_t c = *tit;
+        switch (c) {
+        case '(':
+        case ')':
+            syntax[pos] = tokens::ROUND_PAREN;
+            break;
+        case '.':
+            dig_has_dot = true;
+            tit++;
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+        case '0':
+            syntax[pos] = tokens::DIGIT;
+            for (; tit != end; tit++) {
+                const auto ch = *tit;
+                if(ch == '.' && dig_has_dot){
+                    syntax[pos] = WHITE;
+                    break;
+                }
+                dig_has_dot = ch == '.';
+                if(!std::isdigit(ch)) {
+                    goto skip_pos_increment;
+                }
+            }
+            break;
+        case ' ':
+        case '\t':
+            break;
+        default:
+            syntax[pos] = WHITE;
             buf.clear();
+            for (; tit != end; tit++) {
+                if(std::isspace(*tit))
+                    break;
+                buf.push_back(*tit);
+            }
+            syntax[pos] = match_literal(buf).value_or(WHITE);
+            break;
         }
+        tit++;
+    skip_pos_increment:
     }
-    syntax[pos] = process_token(buf);
-
 }

@@ -87,6 +87,7 @@ public:
         size_t m_line {};
         size_t m_col {};
         size_t m_sz {};
+        bool issue_newline = false;
 
         text_buffer_iterator(const std::vector<TextBuffer::Line>* lines);
         static text_buffer_iterator end(const std::vector<TextBuffer::Line>* lines);
@@ -94,7 +95,7 @@ public:
         friend text_buffer_iterator TextBuffer::create_end_iterator(void) const;
 
     public:
-        const TextBuffer::char_t& operator*() const;
+        TextBuffer::char_t operator*();
         void operator++();
         void operator++(int);
         bool operator==(const text_buffer_iterator& other) const;
@@ -237,6 +238,7 @@ private:
     void update_selection(void);
     void update_scroll_v(float v);
     float get_glyph_width(const Font& font, int codepoint) const;
+    void update_syntax(void);
 
 public:
     text_buffer_iterator begin(void) const;
