@@ -763,7 +763,7 @@ void TextBuffer::draw(void)
                 DrawRectangleRec(glyph, foreground_color);
 
                 DrawTextCodepoint(m_font, c, pos, m_font_size, background_color);
-            } else if (!skip_draws) {
+            } if (!skip_draws) {
                 DrawTextCodepoint(m_font, c, pos, m_font_size, fc);
             }
             pos.x += glyph_width + m_glyph_spacing;

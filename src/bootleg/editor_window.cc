@@ -195,17 +195,18 @@ void boot::EditorWindow::on_transition(Game& game_state)
 }
 
 namespace tokens {
-    static const Color DIGIT = boot::decode_color_from_hex(0xB4CCA1FF);
-    static const Color ROUND_PAREN = boot::decode_color_from_hex(0xDBD996FF);
-    static const Color KEYWORD = boot::decode_color_from_hex(0xC185BCFF);
+static const Color DIGIT = boot::decode_color_from_hex(0xB4CCA1FF);
+static const Color ROUND_PAREN = boot::decode_color_from_hex(0xDBD996FF);
+static const Color KEYWORD = boot::decode_color_from_hex(0xC185BCFF);
 
 };
 
-static std::optional<Color> match_literal(const std::string_view lit){
+static std::optional<Color> match_literal(const std::string_view lit)
+{
     std::cout << lit << std::endl;
-    if(lit == "Color")
+    if (lit == "Color")
         return BLUE;
-    else if(lit == "then" || lit == "else" || lit == "if" || lit == "elseif" || lit == "end")
+    else if (lit == "then" || lit == "else" || lit == "if" || lit == "elseif" || lit == "end")
         return tokens::KEYWORD;
     return std::nullopt;
 }
@@ -215,12 +216,12 @@ static void process_syntax(
     buffer_t::text_buffer_iterator tit,
     const buffer_t::text_buffer_iterator end)
 {
-    bool dig_has_dot = false;
     std::string buf;
     buf.reserve(20);
     buffer_t::Cursor pos = tit.current_cursor_pos();
     for (; tit != end;) {
-        dig_has_dot = false;
+        bool dig_has_dot = false;
+        bool dig_has_minus = false;
         pos = tit.current_cursor_pos();
         buffer_t::char_t c = *tit;
         switch (c) {
@@ -230,6 +231,8 @@ static void process_syntax(
             break;
         case '.':
             dig_has_dot = true;
+        case '-':
+        case '+':
             tit++;
         case '1':
         case '2':
@@ -244,28 +247,88 @@ static void process_syntax(
             syntax[pos] = tokens::DIGIT;
             for (; tit != end; tit++) {
                 const auto ch = *tit;
-                if(ch == '.' && dig_has_dot){
+                if (ch == '.' && dig_has_dot) {
                     syntax[pos] = WHITE;
                     break;
                 }
                 dig_has_dot = ch == '.';
-                if(!std::isdigit(ch)) {
+                if (!std::isdigit(ch)) {
                     goto skip_pos_increment;
                 }
             }
             break;
         case ' ':
         case '\t':
+        case '\n':
+            syntax[pos] = WHITE;
             break;
-        default:
+        case 97:
+        case 98:
+        case 99:
+        case 100:
+        case 101:
+        case 102:
+        case 103:
+        case 104:
+        case 105:
+        case 106:
+        case 107:
+        case 108:
+        case 109:
+        case 110:
+        case 111:
+        case 112:
+        case 113:
+        case 114:
+        case 115:
+        case 116:
+        case 117:
+        case 118:
+        case 119:
+        case 120:
+        case 121:
+        case 122:
+        case 65:
+        case 66:
+        case 67:
+        case 68:
+        case 69:
+        case 70:
+        case 71:
+        case 72:
+        case 73:
+        case 74:
+        case 75:
+        case 76:
+        case 77:
+        case 78:
+        case 79:
+        case 80:
+        case 81:
+        case 82:
+        case 83:
+        case 84:
+        case 85:
+        case 86:
+        case 87:
+        case 88:
+        case 89:
+        case 90:
+        case '_':
             syntax[pos] = WHITE;
             buf.clear();
             for (; tit != end; tit++) {
-                if(std::isspace(*tit))
-                    break;
-                buf.push_back(*tit);
+                const auto ch = *tit;
+                if (std::isspace(ch) || !std::isalnum(ch) || ch == '\n') {
+                    syntax[pos] = match_literal(buf).value_or(WHITE);
+                    std::cout << "break parsing literal" << std::endl;
+                    goto skip_pos_increment;
+                }
+                buf.push_back(ch);
             }
-            syntax[pos] = match_literal(buf).value_or(WHITE);
+            break;
+        default:
+            syntax[pos] = WHITE;
             break;
         }
         tit++;

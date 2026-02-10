@@ -87,6 +87,7 @@ public:
         size_t m_line {};
         size_t m_col {};
         size_t m_sz {};
+        size_t m_current_line_len{};
         bool issue_newline = false;
 
         text_buffer_iterator(const std::vector<TextBuffer::Line>* lines);
@@ -95,7 +96,7 @@ public:
         friend text_buffer_iterator TextBuffer::create_end_iterator(void) const;
 
     public:
-        TextBuffer::char_t operator*();
+        TextBuffer::char_t operator*() const;
         void operator++();
         void operator++(int);
         bool operator==(const text_buffer_iterator& other) const;
