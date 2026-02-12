@@ -87,7 +87,7 @@ public:
         size_t m_line {};
         size_t m_col {};
         size_t m_sz {};
-        size_t m_current_line_len{};
+        size_t m_current_line_len {};
         bool issue_newline = false;
 
         text_buffer_iterator(const std::vector<TextBuffer::Line>* lines);
@@ -137,6 +137,17 @@ public:
 
     TextBuffer() = delete;
     TextBuffer(Font f, Rectangle bounds);
+
+private:
+    void _set_font(std::optional<Font> font = std::nullopt,
+        std::optional<int> sz = std::nullopt,
+        std::optional<int> spacing = std::nullopt);
+    enum class Dir {
+        VERTICAL,
+        HORIZONTAL,
+    };
+    long _move_cursor(Dir dir, long amount, bool with_selection = false);
+public:
     const Font& get_font() const;
     void set_font(Font font);
     int get_font_size() const;

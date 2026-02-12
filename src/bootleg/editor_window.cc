@@ -149,9 +149,9 @@ void boot::EditorWindow::draw(Game& game_state)
     }
     DrawGrid(5, 5);
     const Vector3 axis_center = { -2 * 5., 0, -2 * 5. };
-    DrawLine3D(axis_center, Vector3Add(axis_center, { 20, 0, 0 }), RED);
-    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 20, 0 }), GREEN);
-    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 0, 20 }), BLUE);
+    DrawLine3D(axis_center, Vector3Add(axis_center, { 20, 0, 0 }), boot::colors::X_AXIS);
+    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 20, 0 }), boot::colors::Y_AXIS);
+    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 0, 20 }), boot::colors::Z_AXIS);
     EndMode3D();
     EndBlendMode();
     EndTextureMode();
@@ -197,19 +197,52 @@ void boot::EditorWindow::on_transition(Game& game_state)
 namespace tokens {
 static const Color DIGIT = boot::decode_color_from_hex(0xB4CCA1FF);
 static const Color ROUND_PAREN = boot::decode_color_from_hex(0xDBD996FF);
-static const Color KEYWORD = boot::decode_color_from_hex(0xC185BCFF);
+static const Color KEYWORD_PURPLE = boot::decode_color_from_hex(0xC185BCFF);
+static const Color KEYWORD_BLUE = boot::decode_color_from_hex(0x4194D4FF);
+static const Color COLOR = boot::decode_color_from_hex(0x4EC37FFF);
 
 };
 
 static std::optional<Color> match_literal(const std::string_view lit)
 {
-    std::cout << lit << std::endl;
     if (lit == "Color")
-        return BLUE;
-    else if (lit == "then" || lit == "else" || lit == "if" || lit == "elseif" || lit == "end")
-        return tokens::KEYWORD;
+        return tokens::COLOR;
+    if (lit == "then" || lit == "else" || lit == "if" || lit == "elseif" || lit == "end" || lit == "return")
+        return tokens::KEYWORD_PURPLE;
+    else if (lit == "function" || lit == "or" || lit == "and")
+        return tokens::KEYWORD_BLUE;
+    else if (lit == "X" || lit == "x")
+        return boot::colors::X_AXIS;
+    else if (lit == "Y" || lit == "y")
+        return boot::colors::Y_AXIS;
+    else if (lit == "Z" || lit == "z")
+        return boot::colors::Z_AXIS;
+    else if (lit == "BLANK")
+        return WHITE;
+    else if (boot::colors::COLORMAP.contains(lit))
+        return boot::colors::COLORMAP.at(lit);
     return std::nullopt;
 }
+static bool hex_dig_check(char c)
+{
+    switch (c) {
+    case 'a':
+    case 'A':
+    case 'b':
+    case 'B':
+    case 'c':
+    case 'C':
+    case 'd':
+    case 'D':
+    case 'e':
+    case 'E':
+    case 'f':
+    case 'F':
+        return true;
+    default:
+        return false;
+    };
+};
 
 static void process_syntax(
     buffer_t::syntax_data_t& syntax,
@@ -221,6 +254,7 @@ static void process_syntax(
     buffer_t::Cursor pos = tit.current_cursor_pos();
     for (; tit != end;) {
         bool dig_has_dot = false;
+        bool dig_has_x = false;
         bool dig_has_minus = false;
         pos = tit.current_cursor_pos();
         buffer_t::char_t c = *tit;
@@ -234,6 +268,8 @@ static void process_syntax(
         case '-':
         case '+':
             tit++;
+            if (tit == end && !std::isdigit(*tit))
+                break;
         case '1':
         case '2':
         case '3':
@@ -252,13 +288,18 @@ static void process_syntax(
                     break;
                 }
                 dig_has_dot = ch == '.';
-                if (!std::isdigit(ch)) {
+                if ((ch == 'X' || ch == 'x') && !dig_has_x && !dig_has_dot) {
+                    dig_has_x = true;
+                    continue;
+                }
+                const auto is_valid_hex = (dig_has_x && hex_dig_check(ch)) || !dig_has_x;
+                if (!std::isdigit(ch) && !is_valid_hex) {
                     goto skip_pos_increment;
                 }
             }
             break;
-        // case ' ':
-        // case '\t':
+        case ' ':
+        case '\t':
         case '\n':
             syntax[pos] = WHITE;
             break;
@@ -319,9 +360,8 @@ static void process_syntax(
             buf.clear();
             for (; tit != end; tit++) {
                 const auto ch = *tit;
-                if (std::isspace(ch) || !std::isalnum(ch) || ch == '\n') {
+                if ((std::isspace(ch) || !std::isalnum(ch) || ch == '\n') && ch != '_') {
                     syntax[pos] = match_literal(buf).value_or(WHITE);
-                    std::cout << "break parsing literal" << std::endl;
                     goto skip_pos_increment;
                 }
                 buf.push_back(ch);

@@ -14,15 +14,24 @@ TextBuffer::TextBuffer(Font f, Rectangle bounds)
     m_v_scroll_bar_width = (m_bounds.width * 0.02f);
 }
 
+void TextBuffer::_set_font(std::optional<Font> font, std::optional<int> sz, std::optional<int> spacing){
+    if(font)
+        m_font = *font;
+    if(sz)
+        m_font_size = *sz;
+    if(spacing)
+        m_spacing = *spacing;
+    update_font_measurements();
+    measure_lines();
+    update_viewport_to_cursor();
+}
 const Font& TextBuffer::get_font() const
 {
     return m_font;
 }
 void TextBuffer::set_font(Font font)
 {
-    m_font = font;
-    update_font_measurements();
-    measure_lines();
+    _set_font(font);
 }
 int TextBuffer::get_font_size() const
 {
@@ -30,9 +39,7 @@ int TextBuffer::get_font_size() const
 }
 void TextBuffer::set_font_size(int sz)
 {
-    m_font_size = sz;
-    update_font_measurements();
-    measure_lines();
+    _set_font(std::nullopt, sz);
 }
 int TextBuffer::get_spacing() const
 {
@@ -40,9 +47,7 @@ int TextBuffer::get_spacing() const
 }
 void TextBuffer::set_spacing(int s)
 {
-    m_spacing = s;
-    update_font_measurements();
-    measure_lines();
+    _set_font(std::nullopt, std::nullopt, s);
 }
 float TextBuffer::get_width() const
 {
@@ -88,15 +93,17 @@ void TextBuffer::set_position(Vector2 p)
 }
 void TextBuffer::increase_font_size()
 {
-    m_font_size = std::clamp(m_font_size + 1, 10, 60);
-    update_font_measurements();
-    update_viewport_to_cursor();
+    _set_font(std::nullopt, std::clamp(m_font_size + 1, 10, 60));
+    // m_font_size = std::clamp(m_font_size + 1, 10, 60);
+    // update_font_measurements();
+    // update_viewport_to_cursor();
 }
 void TextBuffer::decrease_font_size()
 {
-    m_font_size = std::clamp(m_font_size - 1, 10, 60);
-    update_font_measurements();
-    update_viewport_to_cursor();
+    _set_font(std::nullopt, std::clamp(m_font_size - 1, 10, 60));
+    // m_font_size = std::clamp(m_font_size - 1, 10, 60);
+    // update_font_measurements();
+    // update_viewport_to_cursor();
 }
 bool TextBuffer::is_cursor_at_begining(void)
 {
@@ -212,6 +219,7 @@ void TextBuffer::delete_selection(void)
         concat_forward();
     }
     m_selection = std::nullopt;
+    update_syntax();
 }
 TextBuffer::line_t TextBuffer::copy_selection(void)
 {
@@ -305,17 +313,17 @@ long TextBuffer::move_cursor_word(long amount, bool with_selection)
 }
 long TextBuffer::move_cursor_left(long amount, bool with_selection)
 {
-    return move_cursor_h(-amount, with_selection);
+    // return move_cursor_h(-amount, with_selection);
+    return _move_cursor(Dir::HORIZONTAL, -amount, with_selection);
 }
 long TextBuffer::move_cursor_right(long amount, bool with_selection)
 {
-    return move_cursor_h(amount, with_selection);
+    return _move_cursor(Dir::HORIZONTAL, amount, with_selection);
+    // return move_cursor_h(amount, with_selection);
 }
 // returns how many positions the cursor moved (across lines, and counted in bytes)
 long TextBuffer::move_cursor_h(long amount, bool with_selection)
 {
-    if (with_selection && !m_selection)
-        start_selection();
     const auto amount_abs = std::abs(amount);
     const auto inc = (amount / std::abs(amount));
     auto moved = 0;
@@ -364,10 +372,10 @@ long TextBuffer::move_cursor_h(long amount, bool with_selection)
         }
         // clamp_cursor();
     }
-    if (with_selection)
-        update_selection();
-    update_viewport_to_cursor();
-    update_scroll_h();
+    // if (with_selection)
+    //     update_selection();
+    // update_viewport_to_cursor();
+    // update_scroll_h();
     return moved;
 }
 long TextBuffer::count_chars_to_cursor_in_line(void)
@@ -382,10 +390,28 @@ long TextBuffer::count_chars_to_cursor_in_line(void)
     }
     return chars;
 }
-long TextBuffer::move_cursor_v(long amount, bool with_selection)
-{
+long TextBuffer::_move_cursor(Dir dir, long amount, bool with_selection){
     if (with_selection && !m_selection)
         start_selection();
+    long ret = 0;
+    switch(dir) {
+        case Dir::HORIZONTAL:
+            ret = move_cursor_h(amount, with_selection);
+            break;
+        case Dir::VERTICAL:
+            ret = move_cursor_v(amount, with_selection);
+            break;
+    }
+    if (with_selection)
+        update_selection();
+    update_viewport_to_cursor();
+    update_scroll_h();
+    return ret;
+}
+long TextBuffer::move_cursor_v(long amount, bool with_selection)
+{
+    // if (with_selection && !m_selection)
+    //     start_selection();
     if (m_cursor.line + amount < 0) {
         amount = -m_cursor.line;
     } else if (m_cursor.line + amount > (long)m_lines.size() - 1) {
@@ -400,30 +426,33 @@ long TextBuffer::move_cursor_v(long amount, bool with_selection)
         jump_cursor_to_end();
     else
         move_cursor_right(chars);
-    if (with_selection)
-        update_selection();
-    update_viewport_to_cursor();
+    // if (with_selection)
+    //     update_selection();
+    // update_viewport_to_cursor();
     return amount;
 }
 void TextBuffer::move_cursor_down(long amount, bool with_selection)
 {
-    move_cursor_v(amount, with_selection);
+    _move_cursor(Dir::VERTICAL, amount, with_selection);
+    // move_cursor_v(amount, with_selection);
 }
 void TextBuffer::move_cursor_up(long amount, bool with_selection)
 {
-    move_cursor_v(-amount, with_selection);
+    _move_cursor(Dir::VERTICAL, -amount, with_selection);
+    // move_cursor_v(-amount, with_selection);
 }
 void TextBuffer::delete_line(size_t line_num)
 {
-    if (m_lines.size() == 1) {
-        m_lines[0].contents.erase();
-        return;
-    }
-    m_lines.erase(m_lines.begin() + line_num);
-    clamp_cursor();
-    update_total_height();
-    update_viewport_to_cursor();
-    update_syntax();
+    delete_lines(line_num, line_num);
+    // if (m_lines.size() == 1) {
+    //     m_lines[0].contents.erase();
+    //     return;
+    // }
+    // m_lines.erase(m_lines.begin() + line_num);
+    // clamp_cursor();
+    // update_total_height();
+    // update_viewport_to_cursor();
+    // update_syntax();
 }
 void TextBuffer::delete_lines(size_t start, size_t end)
 {
@@ -575,11 +604,8 @@ void TextBuffer::insert_string(line_t&& str)
     for (auto i = start; i <= end; i++) {
         measure_line(m_lines[i]);
     }
-    // current_line().insert(m_cursor.col, str);
-    // m_cursor.col += len;
     update_total_height();
     update_viewport_to_cursor();
-    // measure_line(m_lines[m_cursor.line]);
     update_syntax();
 }
 void TextBuffer::insert_line(line_t&& str)
@@ -917,19 +943,6 @@ void TextBuffer::update_buffer(void)
     if (IsKeyPressedOrRepeat(KEY_V) && AnySpecialDown(CONTROL) && !m_readonly) {
         const char* clipboard = GetClipboardText();
         TextBuffer::line_t line { clipboard };
-        // for (size_t i = 0; clipboard[i] != '\0'; i++) {
-        //     if (clipboard[i] == '\n') {
-        //         insert_string(std::move(line));
-        //         insert_newline();
-        //         line = {};
-        //     } else if (clipboard[i] == '\r') {
-        //         continue;
-        //     } else if (clipboard[i] == '\t') {
-        //         line.append("    ");
-        //     } else {
-        //         line.push_back(clipboard[i]);
-        //     }
-        // }
         insert_string(std::move(line));
     }
     if (IsKeyPressedOrRepeat(KEY_C) && AnySpecialDown(CONTROL)) {

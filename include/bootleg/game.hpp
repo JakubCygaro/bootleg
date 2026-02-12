@@ -60,6 +60,9 @@ namespace colors {
             { STRINGIFY(GRAY), GRAY },
             { STRINGIFY(BROWN), BROWN },
         } };
+    inline constexpr const auto X_AXIS = RED;
+    inline constexpr const auto Y_AXIS = GREEN;
+    inline constexpr const auto Z_AXIS = BLUE;
 }
 namespace path {
     inline const std::string GAME_DATA_PATH = "gamedata.m3pkg";
