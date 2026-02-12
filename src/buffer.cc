@@ -14,12 +14,13 @@ TextBuffer::TextBuffer(Font f, Rectangle bounds)
     m_v_scroll_bar_width = (m_bounds.width * 0.02f);
 }
 
-void TextBuffer::_set_font(std::optional<Font> font, std::optional<int> sz, std::optional<int> spacing){
-    if(font)
+void TextBuffer::_set_font(std::optional<Font> font, std::optional<int> sz, std::optional<int> spacing)
+{
+    if (font)
         m_font = *font;
-    if(sz)
+    if (sz)
         m_font_size = *sz;
-    if(spacing)
+    if (spacing)
         m_spacing = *spacing;
     update_font_measurements();
     measure_lines();
@@ -94,16 +95,10 @@ void TextBuffer::set_position(Vector2 p)
 void TextBuffer::increase_font_size()
 {
     _set_font(std::nullopt, std::clamp(m_font_size + 1, 10, 60));
-    // m_font_size = std::clamp(m_font_size + 1, 10, 60);
-    // update_font_measurements();
-    // update_viewport_to_cursor();
 }
 void TextBuffer::decrease_font_size()
 {
     _set_font(std::nullopt, std::clamp(m_font_size - 1, 10, 60));
-    // m_font_size = std::clamp(m_font_size - 1, 10, 60);
-    // update_font_measurements();
-    // update_viewport_to_cursor();
 }
 bool TextBuffer::is_cursor_at_begining(void)
 {
@@ -278,22 +273,17 @@ long TextBuffer::move_cursor_word(long amount, bool with_selection)
     const auto end_check = [&]() {
         return (inc > 0 && is_cursor_at_end()) || (inc < 0 && is_cursor_at_begining());
     };
-    // bool is_under_punct = false;
     const auto under_check = [&](std::optional<char_t>& u) {
-        // is_under_punct = false;
         if (!u.has_value())
             return true;
         auto uc = u.value();
         return (bool)std::isspace(uc) || ((bool)!std::isalnum(uc) && utf8::get_utf8_bytes_len(uc) != -1);
-        // is_under_punct = std::ispunct(uc);
-        // return (std::isspace(uc) || is_under_punct);
     };
     const auto after_check = [](std::optional<char_t>& a) {
         if (!a.has_value())
             return false;
         auto ac = a.value();
         return ((bool)std::isalnum(ac) || utf8::get_utf8_bytes_len(ac) != 1) && !std::isspace(ac);
-        // return ((bool)std::isalnum(ac) || (bool)std::ispunct(ac) || utf8::get_utf8_bytes_len(ac) != 1);
     };
     const auto is_punct = [](std::optional<char_t>& a) {
         if (!a)
@@ -303,7 +293,7 @@ long TextBuffer::move_cursor_word(long amount, bool with_selection)
     auto moved = 0;
     auto i = 0;
     while (i < amount_abs && !end_check()) {
-        moved += move_cursor_h(inc, with_selection);
+        moved += _move_cursor(MoveDir::HORIZONTAL, inc, with_selection);
         auto u = get_char_under_cursor();
         auto a = get_char_after_cursor();
         if (is_punct(a) || (under_check(u) && after_check(a)))
@@ -313,16 +303,14 @@ long TextBuffer::move_cursor_word(long amount, bool with_selection)
 }
 long TextBuffer::move_cursor_left(long amount, bool with_selection)
 {
-    // return move_cursor_h(-amount, with_selection);
-    return _move_cursor(Dir::HORIZONTAL, -amount, with_selection);
+    return _move_cursor(MoveDir::HORIZONTAL, -amount, with_selection);
 }
 long TextBuffer::move_cursor_right(long amount, bool with_selection)
 {
-    return _move_cursor(Dir::HORIZONTAL, amount, with_selection);
-    // return move_cursor_h(amount, with_selection);
+    return _move_cursor(MoveDir::HORIZONTAL, amount, with_selection);
 }
 // returns how many positions the cursor moved (across lines, and counted in bytes)
-long TextBuffer::move_cursor_h(long amount, bool with_selection)
+long TextBuffer::move_cursor_h(long amount)
 {
     const auto amount_abs = std::abs(amount);
     const auto inc = (amount / std::abs(amount));
@@ -361,21 +349,14 @@ long TextBuffer::move_cursor_h(long amount, bool with_selection)
             m_cursor.col = 0;
         } else if (m_cursor.col < 0 && m_cursor.line == 0) {
             m_cursor.col = 0;
-            // return moved;
             break;
         } else if (m_cursor.col > (long)current_line().size() && m_cursor.line == (long)m_lines.size() - 1) {
             m_cursor.col = (long)current_line().size();
-            // return moved;
             break;
         } else {
             moved++;
         }
-        // clamp_cursor();
     }
-    // if (with_selection)
-    //     update_selection();
-    // update_viewport_to_cursor();
-    // update_scroll_h();
     return moved;
 }
 long TextBuffer::count_chars_to_cursor_in_line(void)
@@ -390,17 +371,20 @@ long TextBuffer::count_chars_to_cursor_in_line(void)
     }
     return chars;
 }
-long TextBuffer::_move_cursor(Dir dir, long amount, bool with_selection){
+long TextBuffer::_move_cursor(MoveDir dir, long amount, bool with_selection)
+{
+    if (!amount)
+        return amount;
     if (with_selection && !m_selection)
         start_selection();
     long ret = 0;
-    switch(dir) {
-        case Dir::HORIZONTAL:
-            ret = move_cursor_h(amount, with_selection);
-            break;
-        case Dir::VERTICAL:
-            ret = move_cursor_v(amount, with_selection);
-            break;
+    switch (dir) {
+    case MoveDir::HORIZONTAL:
+        ret = move_cursor_h(amount);
+        break;
+    case MoveDir::VERTICAL:
+        ret = move_cursor_v(amount);
+        break;
     }
     if (with_selection)
         update_selection();
@@ -408,10 +392,8 @@ long TextBuffer::_move_cursor(Dir dir, long amount, bool with_selection){
     update_scroll_h();
     return ret;
 }
-long TextBuffer::move_cursor_v(long amount, bool with_selection)
+long TextBuffer::move_cursor_v(long amount)
 {
-    // if (with_selection && !m_selection)
-    //     start_selection();
     if (m_cursor.line + amount < 0) {
         amount = -m_cursor.line;
     } else if (m_cursor.line + amount > (long)m_lines.size() - 1) {
@@ -426,33 +408,19 @@ long TextBuffer::move_cursor_v(long amount, bool with_selection)
         jump_cursor_to_end();
     else
         move_cursor_right(chars);
-    // if (with_selection)
-    //     update_selection();
-    // update_viewport_to_cursor();
     return amount;
 }
 void TextBuffer::move_cursor_down(long amount, bool with_selection)
 {
-    _move_cursor(Dir::VERTICAL, amount, with_selection);
-    // move_cursor_v(amount, with_selection);
+    _move_cursor(MoveDir::VERTICAL, amount, with_selection);
 }
 void TextBuffer::move_cursor_up(long amount, bool with_selection)
 {
-    _move_cursor(Dir::VERTICAL, -amount, with_selection);
-    // move_cursor_v(-amount, with_selection);
+    _move_cursor(MoveDir::VERTICAL, -amount, with_selection);
 }
 void TextBuffer::delete_line(size_t line_num)
 {
     delete_lines(line_num, line_num);
-    // if (m_lines.size() == 1) {
-    //     m_lines[0].contents.erase();
-    //     return;
-    // }
-    // m_lines.erase(m_lines.begin() + line_num);
-    // clamp_cursor();
-    // update_total_height();
-    // update_viewport_to_cursor();
-    // update_syntax();
 }
 void TextBuffer::delete_lines(size_t start, size_t end)
 {
@@ -476,99 +444,122 @@ void TextBuffer::clear(void)
     update_viewport_to_cursor();
     m_syntax_data.clear();
 }
+bool TextBuffer::_concat(ConcatDir dir)
+{
+    bool ret = false;
+    switch (dir) {
+    case ConcatDir::BACKWARD:
+        if (m_cursor.line > 0) {
+            m_cursor.line--;
+            jump_cursor_to_end();
+            current_line().append(m_lines[m_cursor.line + 1].contents);
+            delete_line(m_cursor.line + 1);
+            ret = true;
+        }
+        break;
+    case ConcatDir::FORWARD:
+        if (m_cursor.line < (long)m_lines.size() - 1) {
+            current_line().append(m_lines[m_cursor.line + 1].contents);
+            delete_line(m_cursor.line + 1);
+            ret = true;
+        }
+        break;
+    }
+    update_total_height();
+    update_scroll_h();
+    measure_line(m_lines[m_cursor.line]);
+    update_syntax();
+    return ret;
+}
 bool TextBuffer::concat_backward(void)
 {
-    if (m_cursor.line > 0) {
-        m_cursor.line--;
-        jump_cursor_to_end();
-        current_line().append(m_lines[m_cursor.line + 1].contents);
-        delete_line(m_cursor.line + 1);
-        update_total_height();
-        update_scroll_h();
-        measure_line(m_lines[m_cursor.line]);
-        update_syntax();
-        return true;
-    }
-    return false;
+    return _concat(ConcatDir::BACKWARD);
 }
 bool TextBuffer::concat_forward(void)
 {
-    if (m_cursor.line < (long)m_lines.size() - 1) {
-        current_line().append(m_lines[m_cursor.line + 1].contents);
-        delete_line(m_cursor.line + 1);
-        update_total_height();
-        update_scroll_h();
-        measure_line(m_lines[m_cursor.line]);
-        update_syntax();
-        return true;
-    }
-    return false;
+    return _concat(ConcatDir::FORWARD);
 }
-void TextBuffer::delete_characters_back(unsigned long amount)
+void TextBuffer::_delete_characters(DeleteDir dir, unsigned long amount)
 {
-    auto end = m_cursor.line;
-    auto moved = move_cursor_left(amount);
-    auto start = m_cursor.line;
-    auto line_diff = end - start;
-    while (line_diff-- > 0) {
-        concat_forward();
+    if (!amount)
+        return;
+    switch (dir) {
+    case DeleteDir::BACKWARD: {
+        auto end = m_cursor.line;
+        auto moved = move_cursor_left(amount);
+        auto start = m_cursor.line;
+        auto line_diff = end - start;
+        while (line_diff-- > 0) {
+            concat_forward();
+        }
+        current_line().erase(current_line().begin() + m_cursor.col, current_line().begin() + m_cursor.col + moved);
+    } break;
+    case DeleteDir::FORWARD: {
+        auto start = m_cursor.line;
+        auto start_col = m_cursor.col;
+        move_cursor_right(amount);
+        auto end = m_cursor.line;
+        auto line_diff = end - start;
+        while (line_diff-- > 0) {
+            concat_backward();
+        }
+        current_line().erase(current_line().begin() + start_col, current_line().begin() + m_cursor.col);
+        m_cursor.col = start_col;
+    } break;
     }
-    current_line().erase(current_line().begin() + m_cursor.col, current_line().begin() + m_cursor.col + moved);
     update_total_height();
     update_scroll_h();
     measure_line(m_lines[m_cursor.line]);
     update_syntax();
 }
+void TextBuffer::delete_characters_back(unsigned long amount)
+{
+    _delete_characters(DeleteDir::BACKWARD, amount);
+}
 void TextBuffer::delete_characters_forward(unsigned long amount)
 {
-    auto start = m_cursor.line;
-    auto start_col = m_cursor.col;
-    move_cursor_right(amount);
-    auto end = m_cursor.line;
-    auto line_diff = end - start;
-    while (line_diff-- > 0) {
-        concat_backward();
+    _delete_characters(DeleteDir::FORWARD, amount);
+}
+void TextBuffer::_delete_words(DeleteDir dir, unsigned long amount)
+{
+    switch (dir) {
+    case DeleteDir::BACKWARD: {
+        auto end = m_cursor.line;
+        auto moved = move_cursor_word(-amount);
+        auto start = m_cursor.line;
+        auto line_diff = end - start;
+        while (line_diff-- > 0) {
+            concat_forward();
+        }
+        current_line().erase(current_line().begin() + m_cursor.col, current_line().begin() + m_cursor.col + moved);
+    } break;
+    case DeleteDir::FORWARD: {
+
+        auto start = m_cursor.line;
+        auto start_col = m_cursor.col;
+        move_cursor_word(amount);
+        auto end = m_cursor.line;
+        auto line_diff = end - start;
+        while (line_diff-- > 0) {
+            concat_backward();
+        }
+        current_line().erase(current_line().begin() + start_col, current_line().begin() + m_cursor.col);
+        m_cursor.col = start_col;
+    } break;
     }
-    current_line().erase(current_line().begin() + start_col, current_line().begin() + m_cursor.col);
-    m_cursor.col = start_col;
     update_total_height();
+    update_scroll_v(0);
     update_scroll_h();
     measure_line(m_lines[m_cursor.line]);
     update_syntax();
 }
 void TextBuffer::delete_words_back(unsigned long amount)
 {
-    auto end = m_cursor.line;
-    auto moved = move_cursor_word(-amount);
-    auto start = m_cursor.line;
-    auto line_diff = end - start;
-    while (line_diff-- > 0) {
-        concat_forward();
-    }
-    current_line().erase(current_line().begin() + m_cursor.col, current_line().begin() + m_cursor.col + moved);
-    update_total_height();
-    update_scroll_v(0);
-    update_scroll_h();
-    measure_line(m_lines[m_cursor.line]);
-    update_syntax();
+    _delete_words(DeleteDir::BACKWARD, amount);
 }
 void TextBuffer::delete_words_forward(unsigned long amount)
 {
-    auto start = m_cursor.line;
-    auto start_col = m_cursor.col;
-    move_cursor_word(amount);
-    auto end = m_cursor.line;
-    auto line_diff = end - start;
-    while (line_diff-- > 0) {
-        concat_backward();
-    }
-    current_line().erase(current_line().begin() + start_col, current_line().begin() + m_cursor.col);
-    m_cursor.col = start_col;
-    update_total_height();
-    update_scroll_v(0);
-    update_scroll_h();
-    measure_line(m_lines[m_cursor.line]);
-    update_syntax();
+    _delete_words(DeleteDir::FORWARD, amount);
 }
 void TextBuffer::insert_character(char_t c)
 {
@@ -622,30 +613,21 @@ void TextBuffer::insert_line(line_t&& str)
 }
 void TextBuffer::jump_cursor_to_top(bool with_selection)
 {
-    m_cursor = {};
-    if (with_selection)
-        update_selection();
-    update_viewport_to_cursor();
+    _move_cursor(MoveDir::VERTICAL, -m_cursor.line, with_selection);
+    jump_cursor_to_start(with_selection);
 }
 void TextBuffer::jump_cursor_to_bottom(bool with_selection)
 {
-    m_cursor = { .line = (long)m_lines.size() - 1, .col = 0 };
+    _move_cursor(MoveDir::VERTICAL, get_line_count() - 1 - m_cursor.line, with_selection);
     jump_cursor_to_end(with_selection);
-    update_viewport_to_cursor();
 }
 void TextBuffer::jump_cursor_to_end(bool with_selection)
 {
-    m_cursor.col = current_line().size();
-    if (with_selection)
-        update_selection();
-    update_scroll_h();
+    _move_cursor(MoveDir::HORIZONTAL, current_line().size() - m_cursor.col, with_selection);
 }
 void TextBuffer::jump_cursor_to_start(bool with_selection)
 {
-    m_cursor.col = 0;
-    if (with_selection)
-        update_selection();
-    update_scroll_h();
+    _move_cursor(MoveDir::HORIZONTAL, -m_cursor.col, with_selection);
 }
 void TextBuffer::insert_newline(void)
 {

@@ -4,6 +4,8 @@
 -- reset it to defaults with <C-R>
 ForeColor = 0xffffffff
 BackColor = 0x1f1f1fff
--- line wrapping ONLY applies to the editor and configuration
+-- ONLY applies to the editor and configuration
 WrapLines = false
 FontSize = 40
+-- ONLY applies to the editor
+Syntax = true

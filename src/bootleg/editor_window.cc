@@ -68,7 +68,6 @@ void boot::EditorWindow::init(Game& game_state)
     m_slider = { {}, 0, 1000, 1000 };
     m_slider.bar_color = Color { 0x1f, 0x1f, 0x1f, 80 };
     m_slider.slider_color = YELLOW;
-    m_text_buffer->set_syntax_parser(process_syntax);
     update_bounds();
 }
 boot::EditorWindow::~EditorWindow()
@@ -186,6 +185,10 @@ void boot::EditorWindow::on_config_reload(const Config& conf)
         m_text_buffer->background_color = conf.background_color;
         m_text_buffer->set_font_size(conf.font_size);
         m_text_buffer->wrap_lines(conf.wrap_lines);
+        if(conf.syntax_highlighting)
+            m_text_buffer->set_syntax_parser(process_syntax);
+        else
+            m_text_buffer->set_syntax_parser(nullptr);
     }
 }
 void boot::EditorWindow::on_transition(Game& game_state)
@@ -255,7 +258,7 @@ static void process_syntax(
     for (; tit != end;) {
         bool dig_has_dot = false;
         bool dig_has_x = false;
-        bool dig_has_minus = false;
+        // bool dig_has_minus = false;
         pos = tit.current_cursor_pos();
         buffer_t::char_t c = *tit;
         switch (c) {

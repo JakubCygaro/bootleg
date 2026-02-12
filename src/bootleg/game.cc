@@ -389,6 +389,9 @@ void Game::reload_configuration(std::string&& config_source)
     if (auto i = lua::getglobalv<int>(m_lua_state, "FontSize"); i) {
         conf.font_size = *i;
     }
+    if (auto b = lua::getglobalv<bool>(m_lua_state, "Syntax"); b) {
+        conf.syntax_highlighting = *b;
+    }
     for (auto& [w, b] : windows) {
         w->on_config_reload(conf);
     }

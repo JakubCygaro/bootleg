@@ -138,15 +138,27 @@ public:
     TextBuffer() = delete;
     TextBuffer(Font f, Rectangle bounds);
 
+    // generic functions to declutter the code
 private:
     void _set_font(std::optional<Font> font = std::nullopt,
         std::optional<int> sz = std::nullopt,
         std::optional<int> spacing = std::nullopt);
-    enum class Dir {
+    enum class MoveDir {
         VERTICAL,
         HORIZONTAL,
     };
-    long _move_cursor(Dir dir, long amount, bool with_selection = false);
+    long _move_cursor(MoveDir dir, long amount, bool with_selection = false);
+    enum class ConcatDir {
+        FORWARD,
+        BACKWARD,
+    };
+    bool _concat(ConcatDir dir);
+    enum class DeleteDir {
+        FORWARD,
+        BACKWARD,
+    };
+    void _delete_characters(DeleteDir dir, unsigned long amount);
+    void _delete_words(DeleteDir dir, unsigned long amount);
 public:
     const Font& get_font() const;
     void set_font(Font font);
@@ -191,8 +203,8 @@ public:
     long count_chars_to_cursor_in_line(void);
     // moves
     //  returns how many positions the cursor moved (across lines, and counted in bytes)
-    long move_cursor_h(long amount, bool with_selection = false);
-    long move_cursor_v(long amount, bool with_selection = false);
+    long move_cursor_h(long amount);
+    long move_cursor_v(long amount);
     long move_cursor_word(long amount, bool with_selection = false);
     long move_cursor_left(long amount = 1, bool with_selection = false);
     long move_cursor_right(long amount = 1, bool with_selection = false);

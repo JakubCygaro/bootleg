@@ -90,6 +90,7 @@ struct Config {
     Color background_color = BLACK;
     bool wrap_lines = false;
     int font_size = 40;
+    bool syntax_highlighting = true;
 };
 struct Window {
 protected:
