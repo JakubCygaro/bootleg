@@ -29,27 +29,27 @@ struct TextBuffer {
     struct Cursor {
         long line {};
         long col {};
-        inline bool operator==(const Cursor& b) const
+        inline bool operator==(const Cursor& b) const noexcept
         {
             return (this->line == b.line) && (this->col == b.col);
         }
-        inline bool operator!=(const Cursor& b) const
+        inline bool operator!=(const Cursor& b) const noexcept
         {
             return !(b == *this);
         }
-        inline bool operator<(const Cursor& b) const
+        inline bool operator<(const Cursor& b) const noexcept
         {
             return (this->line < b.line) || (this->line == b.line && this->col < b.col);
         }
-        inline bool operator>(const Cursor& b) const
+        inline bool operator>(const Cursor& b) const noexcept
         {
             return b < *this;
         }
-        inline bool operator<=(const Cursor& b) const
+        inline bool operator<=(const Cursor& b) const noexcept
         {
             return (*this < b) || (*this == b);
         }
-        inline bool operator>=(const Cursor& b) const
+        inline bool operator>=(const Cursor& b) const noexcept
         {
             return (*this > b) || (*this == b);
         }

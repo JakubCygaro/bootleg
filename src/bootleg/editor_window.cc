@@ -257,8 +257,8 @@ static void process_syntax(
                 }
             }
             break;
-        case ' ':
-        case '\t':
+        // case ' ':
+        // case '\t':
         case '\n':
             syntax[pos] = WHITE;
             break;

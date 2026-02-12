@@ -16,7 +16,6 @@ tit tit::end(const std::vector<TextBuffer::Line>* lines)
 TextBuffer::char_t tit::operator*() const
 {
     if (m_col == m_current_line_len) {
-        std::cout << "passing newline" << std::endl;
         return '\n';
     }
     return (*m_lines)[m_line].contents[m_col];

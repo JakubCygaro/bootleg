@@ -638,6 +638,7 @@ void TextBuffer::insert_newline(void)
     update_total_height();
     update_viewport_to_cursor();
     measure_line(m_lines[m_cursor.line]);
+    update_syntax();
 }
 /// this function ensures that the viewport contains the cursor (the cursor is visible on the screen)
 void TextBuffer::update_viewport_to_cursor(void)
@@ -666,13 +667,9 @@ float TextBuffer::get_glyph_width(const Font& font, int codepoint) const
 }
 void TextBuffer::update_syntax(void)
 {
-    std::printf("update_syntax\n");
     m_syntax_data.clear();
     if (m_syntax_parse_fn)
         m_syntax_parse_fn(m_syntax_data, this->begin(), this->end());
-    for (const auto& [k, v] : m_syntax_data) {
-         std::printf("{ %ld %ld } : (0x%x%x%x%x)\n", k.line, k.col, v.r, v.g, v.b, v.a);
-    }
 }
 float TextBuffer::measure_line_till_cursor(void)
 {
@@ -748,8 +745,9 @@ void TextBuffer::draw(void)
                 };
                 DrawRectangleRec(cursor_line, foreground_color);
             }
-            if (m_syntax_parse_fn && m_syntax_data.contains(_cursor)) {
-                fc = m_syntax_data[_cursor];
+            const auto current_cursor = Cursor { static_cast<long>(linen), static_cast<long>(col) };
+            if (m_syntax_parse_fn && m_syntax_data.contains(current_cursor)) {
+                fc = m_syntax_data[current_cursor];
             }
             _cursor.col = col + 1;
             _cursor.line = linen;
@@ -763,7 +761,8 @@ void TextBuffer::draw(void)
                 DrawRectangleRec(glyph, foreground_color);
 
                 DrawTextCodepoint(m_font, c, pos, m_font_size, background_color);
-            } if (!skip_draws) {
+            }
+            if (!skip_draws) {
                 DrawTextCodepoint(m_font, c, pos, m_font_size, fc);
             }
             pos.x += glyph_width + m_glyph_spacing;
