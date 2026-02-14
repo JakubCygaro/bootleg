@@ -164,8 +164,6 @@ void boot::EditorWindow::draw(Game& game_state)
         5, boot::colors::Z_AXIS,
         false, Rotation::y_axis(90));
 
-
-    // boot::draw_text_3d("Dupa", game_state.font, Vector3One(), 40, 10, boot::colors::X_AXIS, true, Rotation::y_axis(60));
     EndMode3D();
     EndBlendMode();
     EndTextureMode();

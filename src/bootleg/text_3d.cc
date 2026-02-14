@@ -2,6 +2,7 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
+#include <numbers>
 namespace boot {
 Vector2 measure_codepoint_3d(int codepoint, Font font, int font_size)
 {
@@ -40,13 +41,16 @@ void draw_text_3d(const char* txt, Font font, Vector3 pos, int font_size, int sp
         TraceLog(LOG_ERROR, "draw_text_3d: font texture was null");
         return;
     }
+    const auto dir = Vector3Normalize(Vector3RotateByAxisAngle({ 1, 0, 0 },
+                {rotation.x, rotation.y, rotation.z}, rotation.angle * (std::numbers::pi / 180.)));
     const auto view = std::string_view(txt);
     for (size_t c = 0; c < view.size();) {
         int csz = 1;
         const int codepoint = GetCodepoint(view.data() + c, &csz);
         const auto sz = draw_codepoint_3d(codepoint, font, pos, font_size, color, backface, rotation);
         c += csz;
-        pos.x += sz.x + spacing;
+        const auto tmp = Vector3Scale(dir, sz.x + spacing);
+        pos = Vector3Add(pos, tmp);
     }
 }
 Vector2 draw_codepoint_3d(int codepoint, Font font, const Vector3& pos,
