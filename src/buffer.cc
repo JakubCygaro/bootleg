@@ -570,9 +570,10 @@ void TextBuffer::insert_character(char_t c)
     current_line().push_back('!');
     std::shift_right(current_line().begin() + m_cursor.col, current_line().end(), 1);
     current_line()[m_cursor.col++] = static_cast<char_t>(c);
-    update_scroll_h();
     measure_line(m_lines[m_cursor.line]);
-    update_syntax();
+    m_do_common_updates = true;
+    // update_scroll_h();
+    // update_syntax();
 }
 void TextBuffer::insert_string(line_t&& str)
 {
