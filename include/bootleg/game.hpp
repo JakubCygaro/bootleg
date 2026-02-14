@@ -74,6 +74,44 @@ namespace path {
 }
 Color decode_color_from_hex(unsigned int hex_color);
 
+struct Rotation {
+    float angle {};
+    float x {};
+    float y {};
+    float z {};
+    constexpr inline explicit Rotation(float angle, float x, float y, float z)
+        : angle(angle)
+        , x(x)
+        , y(y)
+        , z(z)
+    {
+    }
+    constexpr inline static Rotation none()
+    {
+        return Rotation(0, 1.0, 0, 0);
+    }
+    constexpr inline static Rotation x_axis(float angle)
+    {
+        return Rotation(angle, 1.0, 0, 0);
+    }
+    constexpr inline static Rotation y_axis(float angle)
+    {
+        return Rotation(angle, 0, 1, 0);
+    }
+    constexpr inline static Rotation z_axis(float angle)
+    {
+        return Rotation(angle, 0, 1, 0);
+    }
+};
+Vector2 measure_codepoint_3d(int codepoint, Font font, int font_size);
+Vector2 measure_text_3d(const char* txt, Font font, int font_size, int spacing);
+void draw_text_3d(const char* txt, Font font, Vector3 pos, int font_size,
+    int spacing, const Color& color,
+    bool backface = false, const Rotation& rotation = Rotation::none());
+Vector2 draw_codepoint_3d(int codepoint, Font font, const Vector3& pos,
+    int font_size, const Color& color,
+    bool backface = false, const Rotation& rotation = Rotation::none());
+
 class Game;
 
 struct Level {
@@ -194,6 +232,7 @@ class EditorWindow final : public Window {
     Vector2 m_render_tex_dims = { 800, 800 };
     Rectangle m_cube_bounds = {};
     Slider m_slider = {};
+
 public:
     explicit EditorWindow();
     virtual void init(Game& game_state) override;

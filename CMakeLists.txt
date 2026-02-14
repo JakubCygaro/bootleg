@@ -93,6 +93,7 @@ add_executable(bootleg
     ${CMAKE_SOURCE_DIR}/src/bootleg/slider.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/game.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/raw.cc
+    ${CMAKE_SOURCE_DIR}/src/bootleg/text_3d.cc
 )
 target_link_libraries(bootleg
     PRIVATE bedl

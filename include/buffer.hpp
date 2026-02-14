@@ -127,6 +127,7 @@ private:
     bool m_readonly = false;
     bool m_has_focus = false;
     bool m_draw_cursor = true;
+    bool m_do_common_updates = false;
 
     process_syntax_fn m_syntax_parse_fn = nullptr;
     syntax_data_t m_syntax_data {};

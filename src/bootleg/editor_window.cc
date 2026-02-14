@@ -151,6 +151,21 @@ void boot::EditorWindow::draw(Game& game_state)
     DrawLine3D(axis_center, Vector3Add(axis_center, { 20, 0, 0 }), boot::colors::X_AXIS);
     DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 20, 0 }), boot::colors::Y_AXIS);
     DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 0, 20 }), boot::colors::Z_AXIS);
+
+    int csz = 1;
+    int c = GetCodepoint("X", &csz);
+    auto sz = boot::measure_codepoint_3d(c, game_state.font, 15);
+    boot::draw_codepoint_3d(c, game_state.font, {axis_center.x + 20 - sz.x , axis_center.y + sz.y, axis_center.z},
+        5, boot::colors::X_AXIS,
+        false);
+    c = GetCodepoint("Z", &csz);
+    sz = boot::measure_codepoint_3d(c, game_state.font, 15);
+    boot::draw_codepoint_3d(c, game_state.font, {axis_center.x , axis_center.y + sz.y, axis_center.z + 20},
+        5, boot::colors::Z_AXIS,
+        false, Rotation::y_axis(90));
+
+
+    // boot::draw_text_3d("Dupa", game_state.font, Vector3One(), 40, 10, boot::colors::X_AXIS, true, Rotation::y_axis(60));
     EndMode3D();
     EndBlendMode();
     EndTextureMode();
@@ -268,11 +283,12 @@ static void process_syntax(
             break;
         case '.':
             dig_has_dot = true;
-        case '-':
-        case '+':
             tit++;
-            if (tit == end && !std::isdigit(*tit))
-                break;
+        // case '-':
+        // case '+':
+        //     tit++;
+        //     if (tit == end && !std::isdigit(*tit))
+        //         break;
         case '1':
         case '2':
         case '3':
@@ -291,12 +307,15 @@ static void process_syntax(
                     break;
                 }
                 dig_has_dot = ch == '.';
-                if ((ch == 'X' || ch == 'x') && !dig_has_x && !dig_has_dot) {
-                    dig_has_x = true;
-                    continue;
-                }
-                const auto is_valid_hex = (dig_has_x && hex_dig_check(ch)) || !dig_has_x;
-                if (!std::isdigit(ch) && !is_valid_hex) {
+                // if ((ch == 'X' || ch == 'x') && !dig_has_x && !dig_has_dot) {
+                //     dig_has_x = true;
+                //     continue;
+                // }
+                // const auto is_valid_hex = (dig_has_x && hex_dig_check(ch)) || !dig_has_x;
+                // if (!std::isdigit(ch) && !is_valid_hex) {
+                //     goto skip_pos_increment;
+                // }
+                if (!std::isdigit(ch)) {
                     goto skip_pos_increment;
                 }
             }

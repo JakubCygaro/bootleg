@@ -430,9 +430,10 @@ void TextBuffer::delete_lines(size_t start, size_t end)
     }
     m_lines.erase(m_lines.begin() + start, m_lines.begin() + end + 1);
     clamp_cursor();
-    update_total_height();
-    update_viewport_to_cursor();
-    update_syntax();
+    // update_total_height();
+    // update_viewport_to_cursor();
+    // update_syntax();
+    m_do_common_updates = true;
 }
 void TextBuffer::clear(void)
 {
@@ -465,10 +466,11 @@ bool TextBuffer::_concat(ConcatDir dir)
         }
         break;
     }
-    update_total_height();
-    update_scroll_h();
+    // update_total_height();
+    // update_scroll_h();
+    // update_syntax();
+    m_do_common_updates = true;
     measure_line(m_lines[m_cursor.line]);
-    update_syntax();
     return ret;
 }
 bool TextBuffer::concat_backward(void)
@@ -507,10 +509,11 @@ void TextBuffer::_delete_characters(DeleteDir dir, unsigned long amount)
         m_cursor.col = start_col;
     } break;
     }
-    update_total_height();
-    update_scroll_h();
+    // update_total_height();
+    // update_scroll_h();
+    // update_syntax();
+    m_do_common_updates = true;
     measure_line(m_lines[m_cursor.line]);
-    update_syntax();
 }
 void TextBuffer::delete_characters_back(unsigned long amount)
 {
@@ -547,11 +550,12 @@ void TextBuffer::_delete_words(DeleteDir dir, unsigned long amount)
         m_cursor.col = start_col;
     } break;
     }
-    update_total_height();
+    // update_total_height();
+    // update_scroll_h();
+    // update_syntax();
+    m_do_common_updates = true;
     update_scroll_v(0);
-    update_scroll_h();
     measure_line(m_lines[m_cursor.line]);
-    update_syntax();
 }
 void TextBuffer::delete_words_back(unsigned long amount)
 {
@@ -595,9 +599,10 @@ void TextBuffer::insert_string(line_t&& str)
     for (auto i = start; i <= end; i++) {
         measure_line(m_lines[i]);
     }
-    update_total_height();
-    update_viewport_to_cursor();
-    update_syntax();
+    // update_total_height();
+    // update_viewport_to_cursor();
+    // update_syntax();
+    m_do_common_updates = true;
 }
 void TextBuffer::insert_line(line_t&& str)
 {
@@ -643,10 +648,11 @@ void TextBuffer::insert_newline(void)
     }
     m_cursor.line++;
     m_cursor.col = 0;
-    update_total_height();
-    update_viewport_to_cursor();
+    // update_total_height();
+    // update_viewport_to_cursor();
+    // update_syntax();
+    m_do_common_updates = true;
     measure_line(m_lines[m_cursor.line]);
-    update_syntax();
 }
 /// this function ensures that the viewport contains the cursor (the cursor is visible on the screen)
 void TextBuffer::update_viewport_to_cursor(void)
@@ -958,6 +964,12 @@ void TextBuffer::update_buffer(void)
         for (size_t i = 0; i < len; i++) {
             insert_character(utfbuf[i]);
         }
+    }
+    if(m_do_common_updates){
+        m_do_common_updates = false;
+        update_total_height();
+        update_scroll_h();
+        update_syntax();
     }
     if (start_pos != m_cursor && !shift_down)
         clear_selection();
