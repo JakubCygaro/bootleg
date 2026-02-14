@@ -554,7 +554,7 @@ void TextBuffer::_delete_words(DeleteDir dir, unsigned long amount)
     // update_scroll_h();
     // update_syntax();
     m_do_common_updates = true;
-    update_scroll_v(0);
+    // update_scroll_v(0);
     measure_line(m_lines[m_cursor.line]);
 }
 void TextBuffer::delete_words_back(unsigned long amount)
@@ -732,6 +732,8 @@ void TextBuffer::measure_lines(void)
 }
 void TextBuffer::draw(void)
 {
+    if (!m_wrap_lines)
+        BeginScissorMode(m_bounds.x, m_bounds.y, m_bounds.width, m_bounds.height);
     DrawRectangleRec(m_bounds, background_color);
     // for selection checking
     TextBuffer::Cursor _cursor = {};
@@ -743,7 +745,10 @@ void TextBuffer::draw(void)
             int csz = 1;
             int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
             const float glyph_width = get_glyph_width(m_font, c);
-            bool skip_draws = !CheckCollisionPointRec({ pos.x + glyph_width, pos.y }, m_bounds) || pos.x < m_bounds.x;
+            bool skip_draws = m_wrap_lines ? !CheckCollisionPointRec({ pos.x + glyph_width, pos.y }, m_bounds) || pos.x < m_bounds.x
+                                           // : !CheckCollisionPointRec({ pos.x, pos.y }, m_bounds);
+                                           : false;
+            // bool skip_draws = !CheckCollisionPointRec({ pos.x, pos.y }, m_bounds) || pos.x + glyph_width < m_bounds.x;
             // wrap the line if it goes out of bounds
             if (m_wrap_lines && skip_draws) {
                 pos.x = m_bounds.x;
@@ -794,6 +799,8 @@ void TextBuffer::draw(void)
         pos.x = m_bounds.x - (m_wrap_lines ? 0 : m_scroll_h);
         pos.y += f_line_advance;
     }
+    if (!m_wrap_lines)
+        EndScissorMode();
 }
 void TextBuffer::draw_vertical_scroll_bar(void)
 {
@@ -965,11 +972,13 @@ void TextBuffer::update_buffer(void)
             insert_character(utfbuf[i]);
         }
     }
-    if(m_do_common_updates){
+    if (m_do_common_updates) {
         m_do_common_updates = false;
         update_total_height();
+        update_viewport_to_cursor();
         update_scroll_h();
         update_syntax();
+        update_scroll_v(0);
     }
     if (start_pos != m_cursor && !shift_down)
         clear_selection();
