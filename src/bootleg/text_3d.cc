@@ -83,7 +83,9 @@ Vector2 draw_codepoint_3d(int codepoint, Font font, const Vector3& pos,
         rlBegin(RL_QUADS);
         {
             rlColor4ub(color.r, color.g, color.b, color.a);
-            rlNormal3f(0.0f, 0.0f, 1.0f);
+            const auto dir = Vector3Normalize(Vector3RotateByAxisAngle({ 0, 0, 1 },
+                        {rotation.x, rotation.y, rotation.z}, rotation.angle * (std::numbers::pi / 180.)));
+            rlNormal3f(dir.x, dir.y, dir.z);
             rlTexCoord2f(tx, ty);
             rlVertex3f(x, y, z);
             rlTexCoord2f(tx, th);

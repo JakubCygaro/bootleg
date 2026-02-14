@@ -147,22 +147,29 @@ void boot::EditorWindow::draw(Game& game_state)
         }
     }
     DrawGrid(5, 5);
+    constexpr const auto axis_len = 20;
     const Vector3 axis_center = { -2 * 5., 0, -2 * 5. };
-    DrawLine3D(axis_center, Vector3Add(axis_center, { 20, 0, 0 }), boot::colors::X_AXIS);
-    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 20, 0 }), boot::colors::Y_AXIS);
-    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 0, 20 }), boot::colors::Z_AXIS);
+    DrawLine3D(axis_center, Vector3Add(axis_center, { axis_len, 0, 0 }), boot::colors::X_AXIS);
+    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, axis_len, 0 }), boot::colors::Y_AXIS);
+    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 0, axis_len }), boot::colors::Z_AXIS);
 
+    constexpr const auto axis_mark_size = 5;
     int csz = 1;
     int c = GetCodepoint("X", &csz);
-    auto sz = boot::measure_codepoint_3d(c, game_state.font, 15);
-    boot::draw_codepoint_3d(c, game_state.font, {axis_center.x + 20 - sz.x , axis_center.y + sz.y, axis_center.z},
-        5, boot::colors::X_AXIS,
+    auto sz = boot::measure_codepoint_3d(c, game_state.font, axis_mark_size);
+    boot::draw_codepoint_3d(c, game_state.font, { axis_center.x + axis_len - sz.x, axis_center.y + sz.y, axis_center.z },
+        axis_mark_size, boot::colors::X_AXIS,
         false);
     c = GetCodepoint("Z", &csz);
-    sz = boot::measure_codepoint_3d(c, game_state.font, 15);
-    boot::draw_codepoint_3d(c, game_state.font, {axis_center.x , axis_center.y + sz.y, axis_center.z + 20},
-        5, boot::colors::Z_AXIS,
+    sz = boot::measure_codepoint_3d(c, game_state.font, axis_mark_size);
+    boot::draw_codepoint_3d(c, game_state.font, { axis_center.x, axis_center.y + sz.y, axis_center.z + axis_len },
+        axis_mark_size, boot::colors::Z_AXIS,
         false, Rotation::y_axis(90));
+    c = GetCodepoint("Y", &csz);
+    sz = boot::measure_codepoint_3d(c, game_state.font, axis_mark_size);
+    boot::draw_codepoint_3d(c, game_state.font, { axis_center.x + 0.5f, axis_center.y + axis_len, axis_center.z },
+        axis_mark_size, boot::colors::Y_AXIS,
+        false, Rotation::none());
 
     EndMode3D();
     EndBlendMode();
@@ -198,7 +205,7 @@ void boot::EditorWindow::on_config_reload(const Config& conf)
         m_text_buffer->background_color = conf.background_color;
         m_text_buffer->set_font_size(conf.font_size);
         m_text_buffer->wrap_lines(conf.wrap_lines);
-        if(conf.syntax_highlighting)
+        if (conf.syntax_highlighting)
             m_text_buffer->set_syntax_parser(process_syntax);
         else
             m_text_buffer->set_syntax_parser(nullptr);
