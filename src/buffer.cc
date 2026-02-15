@@ -371,6 +371,14 @@ long TextBuffer::count_chars_to_cursor_in_line(void)
     }
     return chars;
 }
+void TextBuffer::_set_cursor(long line, long column, bool with_selection){
+    if (with_selection && !m_selection)
+        start_selection();
+    m_cursor.line = line;
+    m_cursor.col = column;
+    if (with_selection)
+        update_selection();
+}
 long TextBuffer::_move_cursor(MoveDir dir, long amount, bool with_selection)
 {
     if (!amount)
@@ -406,8 +414,9 @@ long TextBuffer::move_cursor_v(long amount)
         jump_cursor_to_start();
     else if ((long)current_line().size() < chars)
         jump_cursor_to_end();
-    else
+    else{
         move_cursor_right(chars);
+    }
     return amount;
 }
 void TextBuffer::move_cursor_down(long amount, bool with_selection)
@@ -629,11 +638,13 @@ void TextBuffer::jump_cursor_to_bottom(bool with_selection)
 }
 void TextBuffer::jump_cursor_to_end(bool with_selection)
 {
-    _move_cursor(MoveDir::HORIZONTAL, current_line().size() - m_cursor.col, with_selection);
+    _set_cursor(m_cursor.line, current_line().size(), with_selection);
+    m_do_common_updates = true;
 }
 void TextBuffer::jump_cursor_to_start(bool with_selection)
 {
-    _move_cursor(MoveDir::HORIZONTAL, -m_cursor.col, with_selection);
+    _set_cursor(m_cursor.line, 0, with_selection);
+    m_do_common_updates = true;
 }
 void TextBuffer::insert_newline(void)
 {

@@ -160,6 +160,7 @@ private:
     };
     void _delete_characters(DeleteDir dir, unsigned long amount);
     void _delete_words(DeleteDir dir, unsigned long amount);
+    void _set_cursor(long line, long column, bool with_selection = false);
 public:
     const Font& get_font() const;
     void set_font(Font font);

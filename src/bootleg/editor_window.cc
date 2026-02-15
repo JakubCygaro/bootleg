@@ -68,6 +68,7 @@ void boot::EditorWindow::init(Game& game_state)
     m_slider = { {}, 0, 1000, 1000 };
     m_slider.bar_color = Color { 0x1f, 0x1f, 0x1f, 80 };
     m_slider.slider_color = YELLOW;
+    m_slider.set_value(m_slider.get_max());
     update_bounds();
 }
 boot::EditorWindow::~EditorWindow()
@@ -136,12 +137,23 @@ void boot::EditorWindow::draw(Game& game_state)
                     y,
                     z);
                 Vector3 pos = (Vector3) { (float)nx, (float)ny, (float)nz };
-                if (c.a == 255)
-                    DrawCube(pos, brick_width, brick_width, brick_width, c);
+
+                if (c.a == 255){
+                    if(game_state.solution){
+                        const auto s = game_state.solution->color_data[x][y][z];
+                        if((c.r != s.r || c.g != s.g || c.b != s.b) && s.a != 0 && c.a != 0){
+                            DrawCube(pos, brick_width / 3, brick_width / 3, brick_width / 3, RED);
+                        } else {
+                            DrawCube(pos, brick_width, brick_width, brick_width, c);
+                        }
+                    } else {
+                        DrawCube(pos, brick_width, brick_width, brick_width, c);
+                    }
+                }
                 else if (game_state.solution) {
                     const auto scolor = game_state.solution->color_data[x][y][z];
                     if (scolor.a)
-                        DrawCube(pos, brick_width, brick_width, brick_width, { scolor.r, scolor.g, scolor.b, 80 });
+                        DrawCube(pos, brick_width / 3, brick_width / 3, brick_width / 3, { scolor.r, scolor.g, scolor.b, 255 });
                 }
             }
         }
@@ -213,8 +225,10 @@ void boot::EditorWindow::on_config_reload(const Config& conf)
 }
 void boot::EditorWindow::on_transition(Game& game_state)
 {
-    if (m_output_buffer)
+    if (m_output_buffer) {
         m_output_buffer->clear();
+    }
+    m_slider.set_value(m_slider.get_max());
 }
 
 namespace tokens {
@@ -223,14 +237,13 @@ static const Color ROUND_PAREN = boot::decode_color_from_hex(0xDBD996FF);
 static const Color KEYWORD_PURPLE = boot::decode_color_from_hex(0xC185BCFF);
 static const Color KEYWORD_BLUE = boot::decode_color_from_hex(0x4194D4FF);
 static const Color COLOR = boot::decode_color_from_hex(0x4EC37FFF);
-
 };
 
 static std::optional<Color> match_literal(const std::string_view lit)
 {
     if (lit == "Color")
         return tokens::COLOR;
-    if (lit == "then" || lit == "else" || lit == "if" || lit == "elseif" || lit == "end" || lit == "return")
+    if (lit == "then" || lit == "else" || lit == "if" || lit == "elseif" || lit == "end" || lit == "return" || lit == "local")
         return tokens::KEYWORD_PURPLE;
     else if (lit == "function" || lit == "or" || lit == "and")
         return tokens::KEYWORD_BLUE;
@@ -249,18 +262,14 @@ static std::optional<Color> match_literal(const std::string_view lit)
 static bool hex_dig_check(char c)
 {
     switch (c) {
-    case 'a':
-    case 'A':
-    case 'b':
-    case 'B':
-    case 'c':
-    case 'C':
-    case 'd':
-    case 'D':
-    case 'e':
-    case 'E':
-    case 'f':
-    case 'F':
+        // clang-format off
+    case 'a': case 'A':
+    case 'b': case 'B':
+    case 'c': case 'C':
+    case 'd': case 'D':
+    case 'e': case 'E':
+    case 'f': case 'F':
+        // clang-format on
         return true;
     default:
         return false;
@@ -330,58 +339,21 @@ static void process_syntax(
         case '\n':
             syntax[pos] = WHITE;
             break;
-        case 97:
-        case 98:
-        case 99:
-        case 100:
-        case 101:
-        case 102:
-        case 103:
-        case 104:
-        case 105:
-        case 106:
-        case 107:
-        case 108:
-        case 109:
-        case 110:
-        case 111:
-        case 112:
-        case 113:
-        case 114:
-        case 115:
-        case 116:
-        case 117:
-        case 118:
-        case 119:
-        case 120:
-        case 121:
-        case 122:
-        case 65:
-        case 66:
-        case 67:
-        case 68:
-        case 69:
-        case 70:
-        case 71:
-        case 72:
-        case 73:
-        case 74:
-        case 75:
-        case 76:
-        case 77:
-        case 78:
-        case 79:
-        case 80:
-        case 81:
-        case 82:
-        case 83:
-        case 84:
-        case 85:
-        case 86:
-        case 87:
-        case 88:
-        case 89:
-        case 90:
+            // clang-format off
+        case 97: case 98: case 99: case 100:
+        case 101: case 102: case 103: case 104:
+        case 105: case 106: case 107: case 108:
+        case 109: case 110: case 111: case 112:
+        case 113: case 114: case 115: case 116:
+        case 117: case 118: case 119: case 120:
+        case 121: case 122: case 65: case 66:
+        case 67: case 68: case 69: case 70:
+        case 71: case 72: case 73: case 74:
+        case 75: case 76: case 77: case 78:
+        case 79: case 80: case 81: case 82:
+        case 83: case 84: case 85: case 86:
+        case 87: case 88: case 89: case 90:
+        // clang-format on
         case '_':
             syntax[pos] = WHITE;
             buf.clear();

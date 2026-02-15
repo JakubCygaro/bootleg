@@ -213,6 +213,7 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
                     auto* err = lua_tostring(m_lua_state, -1);
                     std::printf("pcall failed : %s\n",
                         err);
+                    level_completed = false;
                     return err;
                 }
                 auto c = lua::getglobalv<unsigned int>(m_lua_state, "Color");
