@@ -744,8 +744,7 @@ void TextBuffer::measure_lines(void)
 }
 void TextBuffer::draw(void)
 {
-    if (!m_wrap_lines)
-        BeginScissorMode(m_bounds.x, m_bounds.y, m_bounds.width, m_bounds.height);
+    BeginScissorMode(m_bounds.x, m_bounds.y, m_bounds.width, m_bounds.height);
     DrawRectangleRec(m_bounds, background_color);
     // for selection checking
     TextBuffer::Cursor _cursor = {};
@@ -811,8 +810,7 @@ void TextBuffer::draw(void)
         pos.x = m_bounds.x - (m_wrap_lines ? 0 : m_scroll_h);
         pos.y += f_line_advance;
     }
-    if (!m_wrap_lines)
-        EndScissorMode();
+    EndScissorMode();
 }
 void TextBuffer::draw_vertical_scroll_bar(void)
 {

@@ -283,5 +283,18 @@ public:
     virtual void on_config_reload(const Config& conf) override;
     virtual ~ConfigWindow();
 };
+class HelpWindow final : public Window {
+    std::unique_ptr<bed::TextBuffer> m_help_buffer = nullptr;
+
+public:
+    explicit HelpWindow();
+    virtual void init(Game& game_state) override;
+    virtual void update(Game& game_state) override;
+    virtual void draw(Game& game_state) override;
+    virtual const char* get_window_name() override;
+    virtual void set_bounds(Rectangle r) override;
+    virtual void on_config_reload(const Config& conf) override;
+    virtual ~HelpWindow();
+};
 }
 #endif
