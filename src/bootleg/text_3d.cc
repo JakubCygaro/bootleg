@@ -4,7 +4,7 @@
 #include <rlgl.h>
 #include <numbers>
 namespace boot {
-Vector2 measure_codepoint_3d(int codepoint, Font font, int font_size)
+Vector2 measure_codepoint_3d(int codepoint, Font font, float font_size)
 {
     if (font.texture.id <= 0) {
         TraceLog(LOG_ERROR, "draw_codepoint_3d: font texture was null");
@@ -17,7 +17,7 @@ Vector2 measure_codepoint_3d(int codepoint, Font font, int font_size)
     const float height = (glyph_rec.height + 2 * font.glyphPadding) * scale;
     return { width, height };
 }
-Vector2 measure_text_3d(const char* txt, Font font, int font_size, int spacing)
+Vector2 measure_text_3d(const char* txt, Font font, float font_size, int spacing)
 {
     Vector2 ret = {};
     if (font.texture.id <= 0) {
@@ -35,7 +35,7 @@ Vector2 measure_text_3d(const char* txt, Font font, int font_size, int spacing)
     }
     return ret;
 }
-void draw_text_3d(const char* txt, Font font, Vector3 pos, int font_size, int spacing, const Color& color, bool backface, const Rotation& rotation)
+void draw_text_3d(const char* txt, Font font, Vector3 pos, float font_size, int spacing, const Color& color, bool backface, const Rotation& rotation)
 {
     if (font.texture.id <= 0) {
         TraceLog(LOG_ERROR, "draw_text_3d: font texture was null");
@@ -54,7 +54,7 @@ void draw_text_3d(const char* txt, Font font, Vector3 pos, int font_size, int sp
     }
 }
 Vector2 draw_codepoint_3d(int codepoint, Font font, const Vector3& pos,
-    int font_size, const Color& color, bool backface, const Rotation& rotation)
+    float font_size, const Color& color, bool backface, const Rotation& rotation)
 {
     if (font.texture.id <= 0) {
         TraceLog(LOG_ERROR, "draw_codepoint_3d: font texture was null");

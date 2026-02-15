@@ -114,6 +114,7 @@ void boot::EditorWindow::update(Game& game_state)
     this->m_slider.update();
     this->m_output_buffer->update_buffer();
 }
+
 void boot::EditorWindow::draw(Game& game_state)
 {
     DrawRectangleGradientEx(m_bounds, RED, BLUE, RED, BLUE);
@@ -138,10 +139,10 @@ void boot::EditorWindow::draw(Game& game_state)
                     z);
                 Vector3 pos = (Vector3) { (float)nx, (float)ny, (float)nz };
 
-                if (c.a == 255){
-                    if(game_state.solution){
+                if (c.a == 255) {
+                    if (game_state.solution) {
                         const auto s = game_state.solution->color_data[x][y][z];
-                        if((c.r != s.r || c.g != s.g || c.b != s.b) && s.a != 0 && c.a != 0){
+                        if ((c.r != s.r || c.g != s.g || c.b != s.b) && s.a != 0 && c.a != 0) {
                             DrawCube(pos, brick_width / 3, brick_width / 3, brick_width / 3, RED);
                         } else {
                             DrawCube(pos, brick_width, brick_width, brick_width, c);
@@ -149,11 +150,50 @@ void boot::EditorWindow::draw(Game& game_state)
                     } else {
                         DrawCube(pos, brick_width, brick_width, brick_width, c);
                     }
-                }
-                else if (game_state.solution) {
+                } else if (game_state.solution) {
                     const auto scolor = game_state.solution->color_data[x][y][z];
                     if (scolor.a)
                         DrawCube(pos, brick_width / 3, brick_width / 3, brick_width / 3, { scolor.r, scolor.g, scolor.b, 255 });
+                }
+
+                char str[] = "";
+                int csz = 1;
+                if (y == 0 && z == 0) {
+                    str[0] = '0' + x;
+                    int c = GetCodepoint(str, &csz);
+                    auto sz = boot::measure_codepoint_3d(c, game_state.font, 0.8);
+                    auto mark_pos = pos;
+                    mark_pos.x -= sz.x / 2;
+                    mark_pos.y = 0;
+                    mark_pos.z -= sz.y * 2;
+                    boot::draw_codepoint_3d(c, game_state.font, mark_pos,
+                        0.8, boot::colors::X_AXIS,
+                        false, Rotation::x_axis(-90));
+                }
+                if (y == 0 && x == 0) {
+                    str[0] = '0' + z;
+                    int c = GetCodepoint(str, &csz);
+                    auto sz = boot::measure_codepoint_3d(c, game_state.font, 0.8);
+                    auto mark_pos = pos;
+                    mark_pos.x -= sz.y * 2;
+                    mark_pos.y = 0;
+                    mark_pos.z -= sz.x / 2;
+                    boot::draw_codepoint_3d(c, game_state.font, mark_pos,
+                        0.8, boot::colors::Z_AXIS,
+                        false, Rotation::x_axis(-90));
+                }
+                if (z == 0 && x == 0) {
+                    str[0] = '0' + y;
+                    int c = GetCodepoint(str, &csz);
+                    auto sz = boot::measure_codepoint_3d(c, game_state.font, 0.8);
+                    auto mark_pos = pos;
+                    // mark_pos.x -= sz.y * 2;
+                    mark_pos.y += sz.y / 2;
+                    mark_pos.x -= brick_width + sz.x / 2;
+                    mark_pos.z -= brick_width;
+                    boot::draw_codepoint_3d(c, game_state.font, mark_pos,
+                        0.8, boot::colors::Y_AXIS,
+                        false, Rotation::y_axis(45));
                 }
             }
         }
