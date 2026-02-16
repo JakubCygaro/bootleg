@@ -396,6 +396,7 @@ long TextBuffer::_move_cursor(MoveDir dir, long amount, bool with_selection)
     }
     if (with_selection)
         update_selection();
+    // m_do_common_updates = true;
     update_viewport_to_cursor();
     update_scroll_h();
     return ret;
@@ -756,7 +757,10 @@ void TextBuffer::draw(void)
             int csz = 1;
             int c = GetCodepoint((char*)&current_line.contents.data()[col], &csz);
             const float glyph_width = get_glyph_width(m_font, c);
-            bool skip_draws = m_wrap_lines ? !CheckCollisionPointRec({ pos.x + glyph_width, pos.y }, m_bounds) || pos.x < m_bounds.x
+            // bool skip_draws = m_wrap_lines ? !CheckCollisionPointRec({ pos.x + glyph_width, pos.y }, m_bounds) || pos.x < m_bounds.x
+            //                                // : !CheckCollisionPointRec({ pos.x, pos.y }, m_bounds);
+            //                                : false;
+            bool skip_draws = m_wrap_lines ? pos.x + glyph_width + m_glyph_spacing > m_bounds.x + m_bounds.width
                                            // : !CheckCollisionPointRec({ pos.x, pos.y }, m_bounds);
                                            : false;
             // bool skip_draws = !CheckCollisionPointRec({ pos.x, pos.y }, m_bounds) || pos.x + glyph_width < m_bounds.x;
@@ -1004,7 +1008,13 @@ void TextBuffer::update_scroll_h(void)
 }
 void TextBuffer::update_total_height(void)
 {
-    f_total_height = f_line_advance * m_lines.size();
+    if(!m_wrap_lines)
+        f_total_height = f_line_advance * m_lines.size();
+    else {
+        for(const auto& l : m_lines){
+            f_total_height += l.lines_when_wrapped * f_line_advance;
+        }
+    }
     if (f_total_height <= m_bounds.height)
         m_scroll_v = 0;
 }
@@ -1029,6 +1039,7 @@ std::optional<TextBuffer::Cursor> TextBuffer::mouse_as_cursor_position(Vector2 p
         return std::nullopt;
     long linenum = 0;
     if (m_wrap_lines) {
+        point.y -= m_scroll_v;
         auto last_line_end = -m_scroll_v;
         for (auto i = 0; i < (long)get_line_count(); i++) {
             auto this_line_end = last_line_end + (m_lines[i].lines_when_wrapped * f_line_advance);
