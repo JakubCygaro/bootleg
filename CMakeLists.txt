@@ -38,32 +38,39 @@ set_property(TARGET meu3
     PROPERTY
     INTERFACE_LINK_LIBRARIES "${meu3LinkLibs}"
 )
+include(FetchContent)
 
 find_package(Lua)
-
-if(Lua_FOUND AND NOT TARGET Lua::Lua)
-  add_library(Lua::Lua INTERFACE IMPORTED)
-  set_target_properties(
-    Lua::Lua
-    PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${LUA_INCLUDE_DIR}"
-      INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}"
-  )
+if(NOT Lua_FOUND)
+    FetchContent_Declare(
+        lua
+        GIT_REPOSITORY "https://github.com/marovira/lua"
+        GIT_TAG 4737fb98d04a3e2fd365e55d8cb95e4c961db3a5
+    )
+    FetchContent_MakeAvailable(lua)
+endif()
+if(NOT TARGET Lua::Lua)
+    add_library(Lua::Lua INTERFACE IMPORTED)
+    set_target_properties(
+      Lua::Lua
+      PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${LUA_INCLUDE_DIR}"
+        INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}"
+    )
 endif()
 
 find_package(raylib)
 if (NOT raylib_FOUND)
-  include(FetchContent)
   FetchContent_Declare(
     raylib
     DOWNLOAD_EXTRACT_TIMESTAMP OFF
     URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
   )
-  FetchContent_GetProperties(raylib)
-  if (NOT raylib_POPULATED)
-    set(FETCHCONTENT_QUIET NO)
-    FetchContent_MakeAvailable(raylib)
-  endif()
+  # FetchContent_GetProperties(raylib)
+  # if (NOT raylib_POPULATED)
+  #   set(FETCHCONTENT_QUIET NO)
+  # endif()
+  FetchContent_MakeAvailable(raylib)
 endif()
 
 target_compile_features(cppfeatures INTERFACE cxx_std_23)
