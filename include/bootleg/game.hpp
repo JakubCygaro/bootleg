@@ -4,6 +4,7 @@
 #include <buffer.hpp>
 #include <cstddef>
 #include <cstring>
+#include <format>
 #include <string_view>
 #include <type_traits>
 #include <unordered_map>
@@ -69,6 +70,8 @@ namespace path {
     inline const std::string DEF_CONFIG = "game/config/config.lua";
     inline const std::string USER_CONFIG = "player/config.lua";
     inline const std::string LEVELS_DIR = "game/levels";
+    inline const std::string RESOURCES_DIR = "game/resources";
+    inline const std::string RESOURCES_FONT = std::format("{}/DroidSansMono.ttf", RESOURCES_DIR);
     inline const std::string USER_SOLUTIONS_DIR = "player/levels";
     inline const std::string USER_COMPLETED_DIR = "player/completed";
 }

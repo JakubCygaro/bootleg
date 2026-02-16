@@ -4,7 +4,6 @@
 #include <cstdio>
 #include <format>
 #include <optional>
-#include <print>
 #include <raylib.h>
 #include <stdexcept>
 #include <string_view>
@@ -30,6 +29,19 @@ void boot::Game::init()
     meu3_pack = meu3_load_package(path::GAME_DATA_PATH.data(), &err);
     if (err != NoError) {
         throw std::runtime_error(std::format("Failed to load gamedata meu3 package at `{}`, error code {}", path::GAME_DATA_PATH, (int)err));
+    }
+    unsigned long long len = 0;
+    MEU3_BYTES font = meu3_package_get_data_ptr(meu3_pack, path::RESOURCES_FONT.data(), &len, &err);
+    if (err != NoError || !font) {
+        TraceLog(LOG_ERROR, "Failed to get pointer to font data at `%s`", path::RESOURCES_FONT.data());
+    } else {
+        Font f = LoadFontFromMemory(".ttf", font, len, 100, NULL, 0);
+        if (f.texture.id <= 0) {
+            TraceLog(LOG_ERROR, "Failed to load font from resources at `%s`", path::RESOURCES_FONT.data());
+        } else {
+            SetTextureFilter(f.texture, TEXTURE_FILTER_ANISOTROPIC_8X);
+            this->font = f;
+        }
     }
     const auto window_bar_h = WINDOW_BAR_HEIGHT * m_dims.y;
     auto w = std::make_unique<boot::EditorWindow>();
@@ -64,9 +76,11 @@ void boot::Game::init()
         window.win->init(*this);
     }
     m_current_window = 0;
+
+
     update_measurements();
 
-    unsigned long long len = 0;
+    len = 0;
     if (auto user_conf = (char*)meu3_package_get_data_ptr(meu3_pack, path::USER_CONFIG.data(), &len, &err); user_conf) {
         auto conf = std::string(user_conf, len);
         reload_configuration(std::move(conf));
@@ -223,13 +237,10 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
                 }
                 auto c = lua::getglobalv<unsigned int>(m_lua_state, "Color");
                 cube.color_data[x][y][z] = boot::decode_color_from_hex(c.value_or(0));
-                const auto color_eq = [](const Color& a, const Color& b)->bool{
-                    return a.r == b.r &&
-                        a.b == b.b &&
-                        a.g == b.g &&
-                        a.a == b.a;
+                const auto color_eq = [](const Color& a, const Color& b) -> bool {
+                    return a.r == b.r && a.b == b.b && a.g == b.g && a.a == b.a;
                 };
-                if(solution.has_value())
+                if (solution.has_value())
                     level_completed &= color_eq(cube.color_data[x][y][z], solution->color_data[x][y][z]);
             }
         }
@@ -344,14 +355,15 @@ void Game::save_source_for_current_level(std::string&& solution)
     }
     save_game_data();
 }
-bool Game::save_solution_for_current_level(std::string&& solution){
+bool Game::save_solution_for_current_level(std::string&& solution)
+{
     const auto current_lvl_path = std::format("{}/{}", path::USER_COMPLETED_DIR, m_current_save_name);
     MEU3_Error err = NoError;
 
-    //check if a solution does not already exists and is shorter than the current one
+    // check if a solution does not already exists and is shorter than the current one
     unsigned long long len = 0;
-    if(auto sol = meu3_package_get_data_ptr(meu3_pack, current_lvl_path.data(), &len, &err);
-            sol && len <= solution.length()){
+    if (auto sol = meu3_package_get_data_ptr(meu3_pack, current_lvl_path.data(), &len, &err);
+        sol && len <= solution.length()) {
         return false;
     }
     err = NoError;

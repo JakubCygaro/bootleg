@@ -761,9 +761,7 @@ void TextBuffer::draw(void)
             //                                // : !CheckCollisionPointRec({ pos.x, pos.y }, m_bounds);
             //                                : false;
             bool skip_draws = m_wrap_lines ? pos.x + glyph_width + m_glyph_spacing > m_bounds.x + m_bounds.width
-                                           // : !CheckCollisionPointRec({ pos.x, pos.y }, m_bounds);
                                            : false;
-            // bool skip_draws = !CheckCollisionPointRec({ pos.x, pos.y }, m_bounds) || pos.x + glyph_width < m_bounds.x;
             // wrap the line if it goes out of bounds
             if (m_wrap_lines && skip_draws) {
                 pos.x = m_bounds.x;
@@ -796,7 +794,7 @@ void TextBuffer::draw(void)
 
                 DrawTextCodepoint(m_font, c, pos, m_font_size, background_color);
             }
-            if (!skip_draws) {
+            else if (!skip_draws) {
                 DrawTextCodepoint(m_font, c, pos, m_font_size, fc);
             }
             pos.x += glyph_width + m_glyph_spacing;
