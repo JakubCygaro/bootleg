@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.80)
 project(Bootleg VERSION 0.1.0)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
+set(RAYLIB_VERSION 5.5)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
