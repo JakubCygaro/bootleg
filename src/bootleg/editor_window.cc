@@ -11,7 +11,7 @@
 constexpr const float BUFFER_MARGIN = .05;
 
 using buffer_t = bed::TextBuffer;
-static void process_syntax(buffer_t::syntax_data_t& syntax, buffer_t::text_buffer_iterator tit, const buffer_t::text_buffer_iterator end);
+static void process_syntax(Color foreground, buffer_t::syntax_data_t& syntax, buffer_t::text_buffer_iterator tit, const buffer_t::text_buffer_iterator end);
 
 boot::EditorWindow::EditorWindow()
 {
@@ -257,8 +257,10 @@ void boot::EditorWindow::on_config_reload(const Config& conf)
         m_text_buffer->background_color = conf.background_color;
         m_text_buffer->set_font_size(conf.font_size);
         m_text_buffer->wrap_lines(conf.wrap_lines);
-        if (conf.syntax_highlighting)
-            m_text_buffer->set_syntax_parser(process_syntax);
+        if (conf.syntax_highlighting){
+            auto ps = std::bind(process_syntax, conf.foreground_color, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+            m_text_buffer->set_syntax_parser(ps);
+        }
         else
             m_text_buffer->set_syntax_parser(nullptr);
     }
@@ -316,7 +318,7 @@ static bool hex_dig_check(char c)
     };
 };
 
-static void process_syntax(
+static void process_syntax(Color foreground,
     buffer_t::syntax_data_t& syntax,
     buffer_t::text_buffer_iterator tit,
     const buffer_t::text_buffer_iterator end)
@@ -357,7 +359,7 @@ static void process_syntax(
             for (; tit != end; tit++) {
                 const auto ch = *tit;
                 if (ch == '.' && dig_has_dot) {
-                    syntax[pos] = WHITE;
+                    syntax[pos] = foreground;
                     break;
                 }
                 dig_has_dot = ch == '.';
@@ -377,7 +379,7 @@ static void process_syntax(
         case ' ':
         case '\t':
         case '\n':
-            syntax[pos] = WHITE;
+            syntax[pos] = foreground;
             break;
             // clang-format off
         case 97: case 98: case 99: case 100:
@@ -395,19 +397,19 @@ static void process_syntax(
         case 87: case 88: case 89: case 90:
         // clang-format on
         case '_':
-            syntax[pos] = WHITE;
+            syntax[pos] = foreground;
             buf.clear();
             for (; tit != end; tit++) {
                 const auto ch = *tit;
                 if ((std::isspace(ch) || !std::isalnum(ch) || ch == '\n') && ch != '_') {
-                    syntax[pos] = match_literal(buf).value_or(WHITE);
+                    syntax[pos] = match_literal(buf).value_or(foreground);
                     goto skip_pos_increment;
                 }
                 buf.push_back(ch);
             }
             break;
         default:
-            syntax[pos] = WHITE;
+            syntax[pos] = foreground;
             break;
         }
         tit++;

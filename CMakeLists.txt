@@ -34,9 +34,6 @@ set_property(TARGET meu3
     PROPERTY
     INTERFACE_LINK_LIBRARIES "${meu3LinkLibs}"
 )
-# include_directories(
-#     ${meu3IncludeDirs}
-# )
 
 find_package(Lua)
 
@@ -103,7 +100,30 @@ target_link_libraries(bootleg
     PRIVATE Lua::Lua
     PRIVATE meu3
 )
-
+if(WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_compile_options(bootleg
+        PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/subsystem windows>
+        PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wl,-subsystem,windows>
+    )
+endif()
 target_link_libraries(bed
     PRIVATE cppfeatures
 )
+
+find_program(hasMeu3 meurglys3 OPTIONAL)
+
+if(hasMeu3 AND ${CMAKE_BUILD_TYPE} STREQUAL "Release" AND NOT NO_PACKAGE_GAMEDATA)
+    message(STATUS "Attempting to package gamedata for a release build")
+    execute_process(
+        COMMAND ${hasMeu3} pack ${CMAKE_CURRENT_SOURCE_DIR}/gamedata ${CMAKE_CURRENT_BINARY_DIR}/gamedata
+        # WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        ERROR_VARIABLE packErr
+        ECHO_ERROR_VARIABLE
+    )
+    if(packErr)
+        message(WARNING "There was an error while trying to package gamedata")
+        message(WARNING ${packErr})
+    else()
+        message(STATUS "Packaging successfull")
+    endif()
+endif()

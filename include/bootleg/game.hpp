@@ -262,6 +262,7 @@ private:
     void handle_level_load(Game& game_state);
     void handle_clear_solution(Game& game_state);
     void handle_load_completion(Game& game_state);
+    void handle_clear_completion(Game& game_state);
 
 public:
     explicit LevelSelectWindow();

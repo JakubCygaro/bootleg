@@ -2,7 +2,6 @@
 #include <format>
 #include <memory>
 #include <meu3.h>
-#include <print>
 #include <raylib.h>
 #include <string_view>
 #include <unordered_map>
@@ -11,6 +10,7 @@ constexpr const std::string display_name_padding = " - ";
 constexpr const std::string_view LOAD_LEVEL = "[LOAD LEVEL]";
 constexpr const std::string_view CLEAR_SAVED_SOLUTION = "[CLEAR SAVED SOLUTION]";
 constexpr const std::string_view LOAD_COMPLETION = "[LOAD COMPLETION]";
+constexpr const std::string_view CLEAR_COMPLETION = "[CLEAR COMPLETION]";
 
 namespace boot {
 LevelSelectWindow::LevelSelectWindow()
@@ -87,6 +87,7 @@ void LevelSelectWindow::init(Game& game_state)
     m_menu_handlers[LOAD_LEVEL] = std::bind(&LevelSelectWindow::handle_level_load, this, _1);
     m_menu_handlers[CLEAR_SAVED_SOLUTION] = std::bind(&LevelSelectWindow::handle_clear_solution, this, _1);
     m_menu_handlers[LOAD_COMPLETION] = std::bind(&LevelSelectWindow::handle_load_completion, this, _1);
+    m_menu_handlers[CLEAR_COMPLETION] = std::bind(&LevelSelectWindow::handle_clear_completion, this, _1);
 }
 void LevelSelectWindow::update(Game& game_state)
 {
@@ -165,6 +166,15 @@ void LevelSelectWindow::handle_load_completion(Game& game_state)
         game_state.load_level(game_state.levels[m_current_level], std::format("lvl{}.lua", m_current_level + 1));
         game_state.saved_solution = std::string(reinterpret_cast<char*>(p), len);
         game_state.transition_to("editor");
+    }
+}
+void LevelSelectWindow::handle_clear_completion(Game& game_state)
+{
+    MEU3_Error err = NoError;
+    const auto path = std::format("{}/lvl{}.lua", path::USER_SOLUTIONS_DIR, m_current_level + 1);
+    if (meu3_package_has(game_state.meu3_pack, path.data(), &err)) {
+        meu3_package_remove(game_state.meu3_pack, path.data(), &err);
+        game_state.save_game_data();
     }
 }
 void LevelSelectWindow::draw(Game& game_state)

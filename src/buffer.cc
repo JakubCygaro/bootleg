@@ -1009,6 +1009,7 @@ void TextBuffer::update_total_height(void)
     if(!m_wrap_lines)
         f_total_height = f_line_advance * m_lines.size();
     else {
+        f_total_height = 0;
         for(const auto& l : m_lines){
             f_total_height += l.lines_when_wrapped * f_line_advance;
         }
