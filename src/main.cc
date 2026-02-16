@@ -1,5 +1,6 @@
 #include "bootleg/game.hpp"
 #include "defer.hpp"
+#include "version.h"
 #include <raylib.h>
 #include <stdexcept>
 
@@ -8,22 +9,22 @@
 
 int main(void)
 {
-    InitWindow(WIDTH, HEIGHT, "Bootleg");
+    InitWindow(WIDTH, HEIGHT, "Bootleg v" VERSION_MAJOR "." VERSION_MINOR "." VERSION_PATCH);
     SetWindowState(FLAG_WINDOW_RESIZABLE);
-    auto game = boot::Game {WIDTH, HEIGHT};
+    auto game = boot::Game { WIDTH, HEIGHT };
     DEFER(CloseWindow());
     SetTargetFPS(60);
 #ifdef DEBUG
     SetTraceLogLevel(LOG_DEBUG);
 #endif
-    try{
+    try {
         game.init();
         while (!WindowShouldClose()) {
             game.update();
             game.draw();
         }
         game.deinit();
-    } catch (const std::runtime_error& re){
+    } catch (const std::runtime_error& re) {
         TraceLog(LOG_FATAL, "The game encountered an unrecoverable error:\n%s", re.what());
     }
 }

@@ -200,15 +200,20 @@ void LevelSelectWindow::set_bounds(Rectangle r)
 }
 void LevelSelectWindow::on_config_reload(const Config& conf)
 {
+    using namespace std::placeholders;
     if (m_lvl_text_buffer) {
         m_lvl_text_buffer->foreground_color = conf.foreground_color;
         m_lvl_text_buffer->background_color = conf.background_color;
         m_lvl_text_buffer->set_font_size(conf.font_size);
+        m_lvl_text_buffer->set_syntax_parser(std::bind(boot::markdown_like_syntax_parser, conf.foreground_color, _1, _2, _3));
+        m_lvl_text_buffer->update_syntax();
     }
     if (m_lvl_menu_buffer) {
         m_lvl_menu_buffer->foreground_color = conf.foreground_color;
         m_lvl_menu_buffer->background_color = conf.background_color;
         m_lvl_menu_buffer->set_font_size(conf.font_size);
+        m_lvl_menu_buffer->set_syntax_parser(std::bind(boot::markdown_like_syntax_parser, conf.foreground_color, _1, _2, _3));
+        m_lvl_menu_buffer->update_syntax();
     }
 }
 LevelSelectWindow::~LevelSelectWindow()

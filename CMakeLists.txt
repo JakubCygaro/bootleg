@@ -1,10 +1,13 @@
 cmake_minimum_required(VERSION 3.80)
 
-project(Bootleg VERSION 0.1)
+project(Bootleg VERSION 0.1.0)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}
+)
 
 if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     add_compile_options(-D DEBUG)
@@ -88,7 +91,9 @@ add_executable(bootleg
     ${CMAKE_SOURCE_DIR}/src/bootleg/level_select_window.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/config_window.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/help_window.cc
+    ${CMAKE_SOURCE_DIR}/src/bootleg/credits_window.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/slider.cc
+    ${CMAKE_SOURCE_DIR}/src/bootleg/markdown_like.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/game.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/raw.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/text_3d.cc
@@ -109,6 +114,8 @@ endif()
 target_link_libraries(bed
     PRIVATE cppfeatures
 )
+
+configure_file(version.h.in version.h @ONLY)
 
 find_program(hasMeu3 meurglys3 OPTIONAL)
 

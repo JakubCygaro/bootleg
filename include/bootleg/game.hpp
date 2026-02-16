@@ -76,6 +76,11 @@ namespace path {
     inline const std::string USER_COMPLETED_DIR = "player/completed";
 }
 Color decode_color_from_hex(unsigned int hex_color);
+using buffer_t = bed::TextBuffer;
+void markdown_like_syntax_parser(Color foreground,
+    buffer_t::syntax_data_t& syntax,
+    buffer_t::text_buffer_iterator tit,
+    const buffer_t::text_buffer_iterator end);
 
 struct Rotation {
     float angle {};
@@ -299,6 +304,15 @@ public:
     virtual void set_bounds(Rectangle r) override;
     virtual void on_config_reload(const Config& conf) override;
     virtual ~HelpWindow();
+};
+class CreditsWindow final : public Window {
+public:
+    explicit CreditsWindow();
+    virtual void init(Game& game_state) override;
+    virtual void update(Game& game_state) override;
+    virtual void draw(Game& game_state) override;
+    virtual const char* get_window_name() override;
+    virtual ~CreditsWindow();
 };
 }
 #endif

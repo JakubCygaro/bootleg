@@ -254,6 +254,7 @@ public:
     void update_viewport_to_cursor(void);
 
     void set_syntax_parser(process_syntax_fn fn);
+    void update_syntax(void);
 
 private:
     std::optional<TextBuffer::Cursor> mouse_as_cursor_position(Vector2 point);
@@ -264,7 +265,6 @@ private:
     void update_selection(void);
     void update_scroll_v(float v);
     float get_glyph_width(const Font& font, int codepoint) const;
-    void update_syntax(void);
 
 public:
     text_buffer_iterator begin(void) const;

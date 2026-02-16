@@ -60,6 +60,9 @@ void boot::Game::init()
     auto hw = std::make_unique<boot::HelpWindow>();
     hw->set_bounds(w->get_bounds());
 
+    auto crw = std::make_unique<boot::CreditsWindow>();
+    crw->set_bounds(w->get_bounds());
+
     auto wd = WindowData {
         .win = std::move(lw),
         .name_bounds = {}
@@ -70,6 +73,8 @@ void boot::Game::init()
     wd.win = std::move(cw);
     this->windows.push_back(std::move(wd));
     wd.win = std::move(hw);
+    this->windows.push_back(std::move(wd));
+    wd.win = std::move(crw);
     this->windows.push_back(std::move(wd));
 
     for (auto& window : this->windows) {
