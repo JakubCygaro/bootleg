@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.80)
 
-project(Bootleg VERSION 0.0)
+project(Bootleg VERSION 0.1)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
 
