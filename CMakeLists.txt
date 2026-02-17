@@ -66,11 +66,7 @@ if (NOT raylib_FOUND)
         DOWNLOAD_EXTRACT_TIMESTAMP OFF
         URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
     )
-    FetchContent_GetProperties(raylib)
-    FetchContent_Populate(raylib)
-    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    add_subdirectory(${raylib_SOURCE_DIR} ${raylib_BINARY_DIR})
-    # FetchContent_MakeAvailable(raylib)
+    FetchContent_MakeAvailable(raylib)
 endif()
 
 target_compile_features(cppfeatures INTERFACE cxx_std_23)
@@ -131,7 +127,6 @@ if(hasMeu3 AND ${CMAKE_BUILD_TYPE} STREQUAL "Release" AND NOT NO_PACKAGE_GAMEDAT
     message(STATUS "Attempting to package gamedata for a release build")
     execute_process(
         COMMAND ${hasMeu3} pack ${CMAKE_CURRENT_SOURCE_DIR}/gamedata ${CMAKE_CURRENT_BINARY_DIR}/gamedata
-        # WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         ERROR_VARIABLE packErr
         ECHO_ERROR_VARIABLE
     )
