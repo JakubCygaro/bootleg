@@ -59,18 +59,18 @@ if(NOT TARGET Lua::Lua)
     )
 endif()
 
-find_package(raylib)
+find_package(raylib ${RAYLIB_VERSION})
 if (NOT raylib_FOUND)
-  FetchContent_Declare(
-    raylib
-    DOWNLOAD_EXTRACT_TIMESTAMP OFF
-    URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
-  )
-  # FetchContent_GetProperties(raylib)
-  # if (NOT raylib_POPULATED)
-  #   set(FETCHCONTENT_QUIET NO)
-  # endif()
-  FetchContent_MakeAvailable(raylib)
+    FetchContent_Declare(
+        raylib
+        DOWNLOAD_EXTRACT_TIMESTAMP OFF
+        URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
+    )
+    FetchContent_GetProperties(raylib)
+    FetchContent_Populate(raylib)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    add_subdirectory(${raylib_SOURCE_DIR} ${raylib_BINARY_DIR})
+    # FetchContent_MakeAvailable(raylib)
 endif()
 
 target_compile_features(cppfeatures INTERFACE cxx_std_23)
