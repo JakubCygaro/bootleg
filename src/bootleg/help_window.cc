@@ -44,6 +44,16 @@ The editor buffer works like a regular text buffer except it has additional spec
 When you want to execute the Lua code you press <Shift-Enter>
 When you want to save the Lua code you press <Control-s>
 
+## Lua specials
+
+There exist a set of special variables you can use:
+ - X, Y, Z: the dimensions of the level
+ - x, y, z: the current position in the level
+ - Color: the output variable thats sets the color for the current (x,y,z) position
+ - BLANK: a special color value that makes the position invisible
+ - RED, GREEN, BLUE, YELLOW...: a set of predefined color values
+
+
 ## Editor solution window
 You can drag the camera by pressing and holding the right mouse button, you can also zoom with the mouse wheel while at it.
 
