@@ -70,6 +70,12 @@ static void set_property(LevelData& ldata, const kvp& kv)
     if (key == "Z") {
         ldata.Z = std::stoi(val);
     }
+    if (key == "name") {
+        ldata.name = val;
+    }
+    if (key == "desc") {
+        ldata.desc = val;
+    }
 }
 static Color read_color(const std::string_view sv)
 {

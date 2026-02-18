@@ -140,8 +140,8 @@ void boot::EditorWindow::draw(Game& game_state)
                 Vector3 pos = (Vector3) { (float)nx, (float)ny, (float)nz };
 
                 if (c.a == 255) {
-                    if (game_state.solution) {
-                        const auto s = game_state.solution->color_data[x][y][z];
+                    if (game_state.m_solution) {
+                        const auto s = game_state.m_solution->color_data[x][y][z];
                         if ((c.r != s.r || c.g != s.g || c.b != s.b) && s.a != 0 && c.a != 0) {
                             DrawCube(pos, brick_width / 3, brick_width / 3, brick_width / 3, RED);
                         } else {
@@ -150,8 +150,8 @@ void boot::EditorWindow::draw(Game& game_state)
                     } else {
                         DrawCube(pos, brick_width, brick_width, brick_width, c);
                     }
-                } else if (game_state.solution) {
-                    const auto scolor = game_state.solution->color_data[x][y][z];
+                } else if (game_state.m_solution) {
+                    const auto scolor = game_state.m_solution->color_data[x][y][z];
                     if (scolor.a)
                         DrawCube(pos, brick_width / 3, brick_width / 3, brick_width / 3, { scolor.r, scolor.g, scolor.b, 255 });
                 }

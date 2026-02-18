@@ -182,6 +182,8 @@ namespace raw {
     struct LevelData {
         int X {}, Y {}, Z {};
         CubeData solution {};
+        std::string desc{};
+        std::string name{};
     };
     LevelData parse_level_data(std::string&& src);
 }
@@ -196,11 +198,11 @@ private:
     size_t m_current_window {};
     std::string m_current_save_name {};
     Config m_conf = {};
+    std::optional<raw::LevelData> m_solution {};
 
 public:
     Font font;
     CubeData cube {};
-    std::optional<CubeData> solution {};
     MEU3_PACKAGE* meu3_pack {};
     std::vector<Level> levels {};
     std::optional<std::string> saved_solution {};

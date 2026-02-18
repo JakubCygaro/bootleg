@@ -221,7 +221,7 @@ Color boot::decode_color_from_hex(unsigned int hex_color)
 }
 std::optional<std::string> boot::Game::load_source(const std::string& source)
 {
-    level_completed = solution.has_value();
+    level_completed = m_solution.has_value();
     for (int x = 0; x < cube.x; x++) {
         for (int y = 0; y < cube.y; y++) {
             for (int z = 0; z < cube.z; z++) {
@@ -245,8 +245,8 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
                 const auto color_eq = [](const Color& a, const Color& b) -> bool {
                     return a.r == b.r && a.b == b.b && a.g == b.g && a.a == b.a;
                 };
-                if (solution.has_value())
-                    level_completed &= color_eq(cube.color_data[x][y][z], solution->color_data[x][y][z]);
+                if (m_solution.has_value())
+                    level_completed &= color_eq(cube.color_data[x][y][z], m_solution->solution.color_data[x][y][z]);
             }
         }
     }
@@ -259,8 +259,10 @@ Color boot::Game::color_for(int x, int y, int z)
 namespace boot {
 void Game::load_level(const Level& lvl, std::string name)
 {
-    solution = std::nullopt;
+    m_solution = std::nullopt;
     saved_solution = std::nullopt;
+    std::string lvl_name, lvl_desc;
+    CubeData* sol{}, *sol_cube{};
     MEU3_Error err = NoError;
     const auto saved_path = std::format("{}/{}", path::USER_SOLUTIONS_DIR, name);
     if (lvl.ty == Level::Type::Lua) {
@@ -292,14 +294,25 @@ void Game::load_level(const Level& lvl, std::string name)
             goto crash_and_burn;
         if (!get_dim("Z", z))
             goto crash_and_burn;
+        lvl_name = lua::getglobalv<std::string>(m_lua_state, "Name").value_or("");
+        lvl_desc = lua::getglobalv<std::string>(m_lua_state, "Desc").value_or("");
 
-        solution = CubeData(x, y, z);
-        for (int x = 0; x < solution->x; x++) {
-            for (int y = 0; y < solution->y; y++) {
-                for (int z = 0; z < solution->z; z++) {
-                    lua::setglobalv(m_lua_state, "X", solution->x);
-                    lua::setglobalv(m_lua_state, "Y", solution->y);
-                    lua::setglobalv(m_lua_state, "Z", solution->z);
+        m_solution = raw::LevelData {
+            .X = x,
+            .Y = y,
+            .Z = z,
+            .solution = CubeData(x, y, z),
+            .desc = lvl_desc,
+            .name = name,
+        };
+
+        sol = &m_solution->solution;
+        for (int x = 0; x < sol->x; x++) {
+            for (int y = 0; y < sol->y; y++) {
+                for (int z = 0; z < sol->z; z++) {
+                    lua::setglobalv(m_lua_state, "X", sol->x);
+                    lua::setglobalv(m_lua_state, "Y", sol->y);
+                    lua::setglobalv(m_lua_state, "Z", sol->z);
 
                     lua::setglobalv(m_lua_state, "Color", 0);
                     lua::setglobalv(m_lua_state, "x", x);
@@ -311,7 +324,7 @@ void Game::load_level(const Level& lvl, std::string name)
                         TraceLog(LOG_ERROR, "Error while running lua levelgen script\n%s", err.what());
                     }
                     auto c = lua::getglobalv<unsigned int>(m_lua_state, "Color");
-                    solution->color_data[x][y][z] = decode_color_from_hex(c.value_or(0));
+                    sol->color_data[x][y][z] = decode_color_from_hex(c.value_or(0));
                 }
             }
         }
@@ -319,9 +332,10 @@ void Game::load_level(const Level& lvl, std::string name)
     } else {
         auto rawlvl = std::string((char*)lvl.data_ptr, lvl.data_len);
         auto lvld = raw::parse_level_data(std::move(rawlvl));
-        solution = lvld.solution;
+        m_solution = lvld;
     }
-    cube = CubeData(solution->x, solution->y, solution->z);
+    sol_cube = &m_solution->solution;
+    cube = CubeData(sol_cube->x, sol_cube->y, sol_cube->z);
     m_current_save_name = name;
     if (meu3_package_has(meu3_pack, saved_path.data(), &err)) {
         auto len = 0ull;
@@ -334,7 +348,7 @@ void Game::load_level(const Level& lvl, std::string name)
     }
     return;
 crash_and_burn:
-    solution = std::nullopt;
+    m_solution = std::nullopt;
     lua_settop(m_lua_state, 0);
     init_lua_state();
     return;
