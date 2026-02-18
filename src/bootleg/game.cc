@@ -82,7 +82,6 @@ void boot::Game::init()
     }
     m_current_window = 0;
 
-
     update_measurements();
 
     len = 0;
@@ -262,7 +261,7 @@ void Game::load_level(const Level& lvl, std::string name)
     m_solution = std::nullopt;
     saved_solution = std::nullopt;
     std::string lvl_name, lvl_desc;
-    CubeData* sol{}, *sol_cube{};
+    CubeData *sol {}, *sol_cube {};
     MEU3_Error err = NoError;
     const auto saved_path = std::format("{}/{}", path::USER_SOLUTIONS_DIR, name);
     if (lvl.ty == Level::Type::Lua) {
@@ -432,5 +431,9 @@ void Game::reload_configuration(std::string&& config_source)
     for (auto& [w, b] : windows) {
         w->on_config_reload(conf);
     }
+}
+const std::optional<raw::LevelData>& Game::get_lvl_data(void)
+{
+    return this->m_solution;
 }
 }

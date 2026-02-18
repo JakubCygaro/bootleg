@@ -230,6 +230,7 @@ public:
     bool save_solution_for_current_level(std::string&& solution);
     void save_game_data(void);
     void reload_configuration(std::string&&);
+    const std::optional<raw::LevelData>& get_lvl_data(void);
 
 private:
     void init_lua_state(void);
