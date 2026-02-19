@@ -2,6 +2,8 @@ header:
 X = 3
 Y = 3
 Z = 3
+name = Yellow-pink sort of thing
+desc = I have no idea what this is nor do I want to know
 data:
 yellow yellow yellow
 yellow pink yellow

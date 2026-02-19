@@ -141,7 +141,7 @@ void boot::EditorWindow::draw(Game& game_state)
 
                 if (c.a == 255) {
                     if (game_state.get_lvl_data()) {
-                        const auto s = game_state.get_lvl_data()->solution.color_data[x][y][z];
+                        const auto s = game_state.get_lvl_data()->solution->color_data[x][y][z];
                         if ((c.r != s.r || c.g != s.g || c.b != s.b) && s.a != 0 && c.a != 0) {
                             DrawCube(pos, brick_width / 3, brick_width / 3, brick_width / 3, RED);
                         } else {
@@ -151,7 +151,7 @@ void boot::EditorWindow::draw(Game& game_state)
                         DrawCube(pos, brick_width, brick_width, brick_width, c);
                     }
                 } else if (game_state.get_lvl_data()) {
-                    const auto scolor = game_state.get_lvl_data()->solution.color_data[x][y][z];
+                    const auto scolor = game_state.get_lvl_data()->solution->color_data[x][y][z];
                     if (scolor.a)
                         DrawCube(pos, brick_width / 3, brick_width / 3, brick_width / 3, { scolor.r, scolor.g, scolor.b, 255 });
                 }
@@ -279,6 +279,7 @@ static const Color ROUND_PAREN = boot::decode_color_from_hex(0xDBD996FF);
 static const Color KEYWORD_PURPLE = boot::decode_color_from_hex(0xC185BCFF);
 static const Color KEYWORD_BLUE = boot::decode_color_from_hex(0x4194D4FF);
 static const Color COLOR = boot::decode_color_from_hex(0x4EC37FFF);
+static const Color BUILT_IN_FUNCTION = boot::decode_color_from_hex(0xd6b97dFF);
 };
 
 static std::optional<Color> match_literal(const std::string_view lit)
@@ -297,6 +298,8 @@ static std::optional<Color> match_literal(const std::string_view lit)
         return boot::colors::Z_AXIS;
     else if (lit == "BLANK")
         return WHITE;
+    else if (lit == "fromRGB")
+        return tokens::BUILT_IN_FUNCTION;
     else if (boot::colors::COLORMAP.contains(lit))
         return boot::colors::COLORMAP.at(lit);
     return std::nullopt;

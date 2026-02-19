@@ -63,6 +63,7 @@ void LevelSelectWindow::init(Game& game_state)
             TraceLog(LOG_DEBUG, "Found level `%s`", lvl_path.data());
             lvl.data_ptr = meu3_package_get_data_ptr(game_state.meu3_pack, lvl_path.data(), &lvl.data_len, &err);
             lvl.ty = Level::Type::Lua;
+            game_state.preload_lua_level(lvl);
         } else {
             TraceLog(LOG_DEBUG, "Checking raw level `%s`", raw_lvl_path.data());
             has = meu3_package_has(game_state.meu3_pack, raw_lvl_path.data(), &err);
@@ -74,6 +75,8 @@ void LevelSelectWindow::init(Game& game_state)
                 TraceLog(LOG_DEBUG, "Found level `%s`", raw_lvl_path.data());
                 lvl.data_ptr = meu3_package_get_data_ptr(game_state.meu3_pack, raw_lvl_path.data(), &lvl.data_len, &err);
                 lvl.ty = Level::Type::Raw;
+                auto s = std::string(reinterpret_cast<char*>(lvl.data_ptr), lvl.data_len);
+                lvl.data = raw::parse_level_data(std::move(s), true);
             } else {
                 break;
             }
@@ -102,11 +105,19 @@ void LevelSelectWindow::update(Game& game_state)
             m_lvl_menu_buffer->clear();
             m_lvl_menu_buffer->insert_line(std::format("# {}", name));
             m_lvl_menu_buffer->insert_newline();
+            const auto& n_ref = game_state.levels[m_current_level].data.name;
+            auto lvl_name = std::format("\"{}\"", n_ref.empty() ? "Unnamed" : n_ref);
+            m_lvl_menu_buffer->insert_line(std::move(lvl_name));
+            const auto& d_ref = game_state.levels[m_current_level].data.desc;
+            auto lvl_desc = std::format("## {}", d_ref.empty() ? "No description" : d_ref);
+            m_lvl_menu_buffer->insert_newline();
+            m_lvl_menu_buffer->insert_line(std::move(lvl_desc));
+            m_lvl_menu_buffer->insert_line(std::move("------"));
+            m_lvl_menu_buffer->insert_newline();
             m_lvl_menu_buffer->insert_line(into<std::string>(LOAD_LEVEL));
             MEU3_Error err = NoError;
             if (meu3_package_has(game_state.meu3_pack,
                     std::format("{}/lvl{}.lua", path::USER_SOLUTIONS_DIR, m_current_level + 1).data(), &err)) {
-                m_lvl_menu_buffer->insert_newline();
                 m_lvl_menu_buffer->insert_line(into<std::string>(CLEAR_SAVED_SOLUTION));
             }
             if (err != NoError) {

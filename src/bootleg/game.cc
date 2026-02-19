@@ -1,8 +1,10 @@
 #include "meu3.h"
 #include <bootleg/game.hpp>
 #include <bootleg/lua_generics.hpp>
+#include <cstdint>
 #include <cstdio>
 #include <format>
+#include <limits>
 #include <optional>
 #include <raylib.h>
 #include <stdexcept>
@@ -112,6 +114,31 @@ static void setup_colors(lua_State* lua)
         add_color(k, v);
     }
 }
+extern "C" {
+static int l_color__from_parts(lua_State* L)
+{
+    int n = lua_gettop(L);
+    if (n != 3)
+        return 0;
+    const bool all_nums = lua_isnumber(L, 1) && lua_isnumber(L, 2) && lua_isnumber(L, 3);
+    if (!all_nums)
+        return 0;
+    constexpr const auto max = std::numeric_limits<decltype(Color::a)>::max();
+    Color color = {};
+    color.a = max;
+    color.r = std::abs(lua_tonumber(L, 1)) * max;
+    color.g = std::abs(lua_tonumber(L, 2)) * max;
+    color.b = std::abs(lua_tonumber(L, 3)) * max;
+    int32_t raw_color = 0;
+    int8_t* bytes = reinterpret_cast<int8_t*>(&raw_color);
+    bytes[3] = color.r;
+    bytes[2] = color.g;
+    bytes[1] = color.b;
+    bytes[0] = color.a;
+    lua_pushinteger(L, raw_color);
+    return 1;
+}
+}
 void boot::Game::init_lua_state(void)
 {
     if (m_lua_state) {
@@ -120,6 +147,11 @@ void boot::Game::init_lua_state(void)
     }
     m_lua_state = luaL_newstate();
     luaL_openlibs(m_lua_state);
+    lua_createtable(m_lua_state, 0, 1);
+    lua_pushstring(m_lua_state, "fromRGB");
+    lua_pushcfunction(m_lua_state, l_color__from_parts);
+    lua_settable(m_lua_state, 1);
+    lua_setglobal(m_lua_state, "color");
     lua::setglobalv(m_lua_state, "x", 0);
     lua::setglobalv(m_lua_state, "y", 0);
     lua::setglobalv(m_lua_state, "z", 0);
@@ -245,7 +277,7 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
                     return a.r == b.r && a.b == b.b && a.g == b.g && a.a == b.a;
                 };
                 if (m_solution.has_value())
-                    level_completed &= color_eq(cube.color_data[x][y][z], m_solution->solution.color_data[x][y][z]);
+                    level_completed &= color_eq(cube.color_data[x][y][z], m_solution->solution->color_data[x][y][z]);
             }
         }
     }
@@ -256,6 +288,33 @@ Color boot::Game::color_for(int x, int y, int z)
     return this->cube.color_data[x][y][z];
 }
 namespace boot {
+void Game::preload_lua_level(Level& lvl)
+{
+    if (lvl.ty != Level::Type::Lua)
+        return;
+    init_lua_state();
+    auto data = raw::LevelData {};
+    auto error = luaL_loadbuffer(m_lua_state, reinterpret_cast<const char*>(lvl.data_ptr), lvl.data_len, NULL);
+    if (error != LUA_OK) {
+        TraceLog(LOG_ERROR, "Error while preloading lua levelgen script\n%s", lua_tostring(m_lua_state, -1));
+        goto crash_and_burn;
+    }
+    try {
+        lua::voidpcall(m_lua_state, NULL);
+    } catch (const std::runtime_error& err) {
+        TraceLog(LOG_ERROR, "Error while running lua levelgen script for preload\n%s", err.what());
+        goto crash_and_burn;
+    }
+    data.X = lua::getglobalv<int>(m_lua_state, "X").value_or(-1);
+    data.Y = lua::getglobalv<int>(m_lua_state, "Y").value_or(-1);
+    data.Z = lua::getglobalv<int>(m_lua_state, "Z").value_or(-1);
+    data.name = lua::getglobalv<std::string>(m_lua_state, "Name").value_or("");
+    data.desc = lua::getglobalv<std::string>(m_lua_state, "Desc").value_or("");
+    lvl.data = data;
+crash_and_burn:
+    lua_settop(m_lua_state, 0);
+    init_lua_state();
+}
 void Game::load_level(const Level& lvl, std::string name)
 {
     m_solution = std::nullopt;
@@ -305,7 +364,7 @@ void Game::load_level(const Level& lvl, std::string name)
             .name = name,
         };
 
-        sol = &m_solution->solution;
+        sol = &m_solution->solution.value();
         for (int x = 0; x < sol->x; x++) {
             for (int y = 0; y < sol->y; y++) {
                 for (int z = 0; z < sol->z; z++) {
@@ -333,7 +392,7 @@ void Game::load_level(const Level& lvl, std::string name)
         auto lvld = raw::parse_level_data(std::move(rawlvl));
         m_solution = lvld;
     }
-    sol_cube = &m_solution->solution;
+    sol_cube = &m_solution->solution.value();
     cube = CubeData(sol_cube->x, sol_cube->y, sol_cube->z);
     m_current_save_name = name;
     if (meu3_package_has(meu3_pack, saved_path.data(), &err)) {

@@ -122,15 +122,6 @@ Vector2 draw_codepoint_3d(int codepoint, Font font, const Vector3& pos,
 
 class Game;
 
-struct Level {
-    MEU3_BYTES data_ptr {};
-    unsigned long long data_len {};
-    enum struct Type {
-        Lua,
-        Raw
-    };
-    Type ty;
-};
 struct Config {
     Color foreground_color = WHITE;
     Color background_color = BLACK;
@@ -181,13 +172,24 @@ struct CubeData {
 namespace raw {
     struct LevelData {
         int X {}, Y {}, Z {};
-        CubeData solution {};
+        std::optional<CubeData> solution {};
         std::string desc{};
         std::string name{};
     };
-    LevelData parse_level_data(std::string&& src);
+    LevelData parse_level_data(std::string&& src, bool skip_data_section = false);
 }
 
+struct Level {
+    MEU3_BYTES data_ptr {};
+    unsigned long long data_len {};
+    enum struct Type {
+        Lua,
+        Raw
+    };
+    Type ty;
+    /// this is partially loaded
+    raw::LevelData data;
+};
 class Game {
 public:
     struct WindowData;
@@ -224,6 +226,7 @@ public:
     void update_measurements(void);
     std::optional<std::string> load_source(const std::string&);
     void load_level(const Level& lvl, std::string name);
+    void preload_lua_level(Level& lvl);
     Color color_for(int x, int y, int z);
     void transition_to(std::string_view window_name);
     void save_source_for_current_level(std::string&& solution);

@@ -110,7 +110,7 @@ static std::vector<Color> read_chunk_slice(std::string_view slice)
     return ret;
 }
 
-LevelData parse_level_data(std::string&& src)
+LevelData parse_level_data(std::string&& src, bool skip_data_section)
 {
     LevelData lvl = {};
     ParseState pstate = ParseState::PASSING;
@@ -125,7 +125,7 @@ LevelData parse_level_data(std::string&& src)
             pstate = ParseState::READHEADER;
             continue;
         } else if (line == "data:") {
-            pstate = ParseState::READDATA;
+            pstate = skip_data_section ? ParseState::PASSING : ParseState::READDATA;
             continue;
         }
         switch (pstate) {
@@ -133,8 +133,6 @@ LevelData parse_level_data(std::string&& src)
         } break;
         case ParseState::READHEADER: {
             if (auto kvp = read_kvp(line); kvp) {
-                // const auto& [k, v] = *kvp;
-                // std::println("k: '{}' v: '{}'", k, v);
                 set_property(lvl, *kvp);
             }
         } break;
@@ -167,9 +165,9 @@ LevelData parse_level_data(std::string&& src)
                     if ((size_t)pos < current_chunk->size()) {
                         c = (*current_chunk)[pos];
                     }
-                    lvl.solution.color_data[x][y][z] = c;
+                    lvl.solution->color_data[x][y][z] = c;
                 } else {
-                    lvl.solution.color_data[x][y][z] = BLANK;
+                    lvl.solution->color_data[x][y][z] = BLANK;
                 }
             }
         }

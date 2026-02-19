@@ -1,6 +1,8 @@
 X = 9
 Y = 9
 Z = 9
+Name = "Non-binary tree"
+Desc = "Since a binary tree would have a branch or two"
 function Generate()
     if(x == math.floor(X / 2)
             and z == math.floor(Z / 2)
