@@ -1,7 +1,6 @@
 #include <bootleg/game.hpp>
 #include <memory>
 #include <optional>
-#include <print>
 #include <raylib.h>
 #include <raymath.h>
 #include <string>
@@ -117,18 +116,21 @@ void boot::EditorWindow::draw(Game& game_state)
     const auto& cube = game_state.cube;
     const auto brick_width = 1.0f;
     const auto solution_brick_width = brick_width / 3;
+    constexpr auto tooltip_wait_time = 0.5;
     using tooltip_info_t = std::optional<std::tuple<int, int, int>>;
     tooltip_info_t tooltip_info = {};
     const auto draw_solution_tooltip = [&, this](const int& x, const int& y,
                                            const int& z,
                                            const Vector3& pos) {
+        const auto mouse = GetMousePosition();
+        if(!CheckCollisionPointRec(mouse, m_cube_bounds))
+            return;
         const BoundingBox bbox = {
             .min = Vector3Subtract(
                 pos, Vector3Scale({ solution_brick_width, solution_brick_width, solution_brick_width }, 0.5)),
             .max = Vector3Add(
                 pos, Vector3Scale({ solution_brick_width, solution_brick_width, solution_brick_width }, 0.5)),
         };
-        const auto mouse = GetMousePosition();
         const auto mouse_in_view = Vector2 { mouse.x - m_cube_bounds.x, mouse.y - m_cube_bounds.y };
         const Vector2 mouse_in_view_prc = { mouse_in_view.x / m_cube_bounds.width,
             mouse_in_view.y / m_cube_bounds.height };
@@ -144,7 +146,14 @@ void boot::EditorWindow::draw(Game& game_state)
         }
         tooltip_info = { x, y, z };
     };
-
+    static Vector2 last_mouse_pos = { -1, -1 };
+    static double mouse_stationary_time = 0.0;
+    const auto mouse = GetMousePosition();
+    const bool mouse_moved = mouse != last_mouse_pos;
+    if(mouse_moved){
+        last_mouse_pos = mouse;
+        mouse_stationary_time = GetTime() + tooltip_wait_time;
+    }
     DrawRectangleGradientEx(m_bounds, RED, BLUE, RED, BLUE);
     this->m_text_buffer->draw();
     this->m_output_buffer->draw();
@@ -268,7 +277,7 @@ void boot::EditorWindow::draw(Game& game_state)
     DrawTexturePro(m_render_tex.texture, src, m_cube_bounds, Vector2Zero(), 0,
         WHITE);
     this->m_slider.draw();
-    if (tooltip_info) {
+    if (tooltip_info && GetTime() >= mouse_stationary_time) {
         const auto txt = std::format("({},{},{})", std::get<0>(*tooltip_info),
             std::get<1>(*tooltip_info), std::get<2>(*tooltip_info));
         boot::draw_cursor_tooltip(txt.c_str(), game_state.font, 20, 10, m_bounds,

@@ -113,7 +113,10 @@ target_link_libraries(bootleg
     PRIVATE Lua::Lua
     PRIVATE meu3
 )
+
 target_clangformat_setup(bootleg)
+target_clangformat_setup(bed)
+
 if(WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Release")
     target_compile_options(bootleg
         PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/subsystem windows>

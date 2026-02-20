@@ -1,3 +1,4 @@
+#include "buffer.hpp"
 #include "defer.hpp"
 #include "utf8.hpp"
 #include <cassert>
@@ -6,7 +7,6 @@
 #include <format>
 #include <iostream>
 #include <raylib.h>
-#include "buffer.hpp"
 
 // lifted from raylib examples
 static void add_codepoints_range(Font* font, const char* fontPath, int start, int stop)
@@ -56,12 +56,12 @@ int main(int argc, char** args)
     _text_buffer.set_font_size(50);
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
-        if(IsWindowResized()){
+        if (IsWindowResized()) {
             _text_buffer.set_width(GetScreenWidth());
             _text_buffer.set_height(GetScreenHeight());
         }
-        if(IsKeyPressed(KEY_I) && IsKeyDown(KEY_LEFT_CONTROL)){
-            for(auto it = _text_buffer.begin(); it != _text_buffer.end(); it++){
+        if (IsKeyPressed(KEY_I) && IsKeyDown(KEY_LEFT_CONTROL)) {
+            for (auto it = _text_buffer.begin(); it != _text_buffer.end(); it++) {
                 std::cout << *it;
             }
             std::cout << std::endl;
