@@ -330,7 +330,7 @@ static std::optional<Color> match_literal(const std::string_view lit)
         return tokens::COLOR;
     if (lit == "then" || lit == "else" || lit == "if" || lit == "elseif" || lit == "end" || lit == "return" || lit == "local")
         return tokens::KEYWORD_PURPLE;
-    else if (lit == "function" || lit == "or" || lit == "and")
+    else if (lit == "function" || lit == "or" || lit == "and" || lit == "not")
         return tokens::KEYWORD_BLUE;
     else if (lit == "X" || lit == "x")
         return boot::colors::X_AXIS;

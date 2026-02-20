@@ -949,6 +949,9 @@ void TextBuffer::update_buffer(void)
     }
     if (IsKeyPressedOrRepeat(KEY_V) && AnySpecialDown(CONTROL) && !m_readonly) {
         const char* clipboard = GetClipboardText();
+        if(m_selection){
+            delete_selection();
+        }
         TextBuffer::line_t line { clipboard };
         insert_string(std::move(line));
     }
