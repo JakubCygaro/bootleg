@@ -113,9 +113,9 @@ struct Rotation {
     }
 };
 Vector2 measure_codepoint_3d(int codepoint, Font font, float font_size);
-Vector2 measure_text_3d(const char* txt, Font font, float font_size, int spacing);
+Vector2 measure_text_3d(const char* txt, Font font, float font_size, float spacing);
 void draw_text_3d(const char* txt, Font font, Vector3 pos, float font_size,
-    int spacing, const Color& color,
+    float spacing, const Color& color,
     bool backface = false, const Rotation& rotation = Rotation::none());
 Vector2 draw_codepoint_3d(int codepoint, Font font, const Vector3& pos,
     float font_size, const Color& color,

@@ -18,7 +18,7 @@ Vector2 measure_codepoint_3d(int codepoint, Font font, float font_size)
     return { width, height };
 }
 Vector2 measure_text_3d(const char* txt, Font font, float font_size,
-    int spacing)
+    float spacing)
 {
     Vector2 ret = {};
     if (font.texture.id <= 0) {
@@ -31,13 +31,15 @@ Vector2 measure_text_3d(const char* txt, Font font, float font_size,
         const int codepoint = GetCodepoint(view.data() + c, &csz);
         const auto sz = measure_codepoint_3d(codepoint, font, font_size);
         c += csz;
-        ret.y = sz.y;
+        ret.y = std::max(ret.y, sz.y);
         ret.x += sz.x + spacing;
     }
+    if (view.length() <= 1)
+        ret.x -= spacing;
     return ret;
 }
 void draw_text_3d(const char* txt, Font font, Vector3 pos, float font_size,
-    int spacing, const Color& color, bool backface,
+    float spacing, const Color& color, bool backface,
     const Rotation& rotation)
 {
     if (font.texture.id <= 0) {

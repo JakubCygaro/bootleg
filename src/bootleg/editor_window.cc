@@ -123,7 +123,7 @@ void boot::EditorWindow::draw(Game& game_state)
                                            const int& z,
                                            const Vector3& pos) {
         const auto mouse = GetMousePosition();
-        if(!CheckCollisionPointRec(mouse, m_cube_bounds))
+        if (!CheckCollisionPointRec(mouse, m_cube_bounds))
             return;
         const BoundingBox bbox = {
             .min = Vector3Subtract(
@@ -150,7 +150,7 @@ void boot::EditorWindow::draw(Game& game_state)
     static double mouse_stationary_time = 0.0;
     const auto mouse = GetMousePosition();
     const bool mouse_moved = mouse != last_mouse_pos;
-    if(mouse_moved){
+    if (mouse_moved) {
         last_mouse_pos = mouse;
         mouse_stationary_time = GetTime() + tooltip_wait_time;
     }
@@ -177,6 +177,7 @@ void boot::EditorWindow::draw(Game& game_state)
                         if ((c.r != s.r || c.g != s.g || c.b != s.b) && s.a != 0 && c.a != 0) {
                             DrawCube(pos, solution_brick_width, solution_brick_width,
                                 solution_brick_width, RED);
+                            draw_solution_tooltip(x, y, z, pos);
                         } else {
                             DrawCube(pos, brick_width, brick_width, brick_width, c);
                         }
@@ -192,42 +193,38 @@ void boot::EditorWindow::draw(Game& game_state)
                     }
                 }
                 // drawing of the grid numbers
-                char str[] = "";
+                std::string str = "";
                 int csz = 1;
                 if (y == 0 && z == 0) {
-                    str[0] = '0' + x;
-                    int c = GetCodepoint(str, &csz);
-                    auto sz = boot::measure_codepoint_3d(c, game_state.font, 0.8);
+                    str = std::format("{}", x);
+                    auto sz = boot::measure_text_3d(str.c_str(), game_state.font, 0.8, 0.2);
                     auto mark_pos = pos;
                     mark_pos.x -= sz.x / 2;
                     mark_pos.y = 0;
                     mark_pos.z -= sz.y * 2;
-                    boot::draw_codepoint_3d(c, game_state.font, mark_pos, 0.8,
+                    boot::draw_text_3d(str.c_str(), game_state.font, mark_pos, 0.8, 0.2,
                         boot::colors::X_AXIS, false,
                         Rotation::x_axis(-90));
                 }
                 if (y == 0 && x == 0) {
-                    str[0] = '0' + z;
-                    int c = GetCodepoint(str, &csz);
-                    auto sz = boot::measure_codepoint_3d(c, game_state.font, 0.8);
+                    str = std::format("{}", z);
+                    auto sz = boot::measure_text_3d(str.c_str(), game_state.font, 0.8, 0.2);
                     auto mark_pos = pos;
                     mark_pos.x -= sz.y * 2;
                     mark_pos.y = 0;
                     mark_pos.z -= sz.x / 2;
-                    boot::draw_codepoint_3d(c, game_state.font, mark_pos, 0.8,
+                    boot::draw_text_3d(str.c_str(), game_state.font, mark_pos, 0.8, 0.2,
                         boot::colors::Z_AXIS, false,
                         Rotation::x_axis(-90));
                 }
                 if (z == 0 && x == 0) {
-                    str[0] = '0' + y;
-                    int c = GetCodepoint(str, &csz);
-                    auto sz = boot::measure_codepoint_3d(c, game_state.font, 0.8);
+                    str = std::format("{}", y);
+                    auto sz = boot::measure_text_3d(str.c_str(), game_state.font, 0.8, 0.2);
                     auto mark_pos = pos;
-                    // mark_pos.x -= sz.y * 2;
                     mark_pos.y += sz.y / 2;
                     mark_pos.x -= brick_width + sz.x / 2;
                     mark_pos.z -= brick_width;
-                    boot::draw_codepoint_3d(c, game_state.font, mark_pos, 0.8,
+                    boot::draw_text_3d(str.c_str(), game_state.font, mark_pos, 0.8, 0.2,
                         boot::colors::Y_AXIS, false,
                         Rotation::y_axis(45));
                 }
