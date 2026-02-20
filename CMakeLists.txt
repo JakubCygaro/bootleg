@@ -5,6 +5,8 @@ project(Bootleg VERSION 0.1.1)
 set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
 set(RAYLIB_VERSION 5.5)
 
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_BINARY_DIR}
@@ -16,6 +18,7 @@ endif()
 
 add_library(cppfeatures INTERFACE)
 
+include(ClangFormat)
 include(FetchContent)
 #Commands are left empty so that we only checkout the source and no not perform any kind of build
 FetchContent_Declare(gitmeu3
@@ -101,6 +104,7 @@ add_executable(bootleg
     ${CMAKE_SOURCE_DIR}/src/bootleg/game.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/raw.cc
     ${CMAKE_SOURCE_DIR}/src/bootleg/text_3d.cc
+    ${CMAKE_SOURCE_DIR}/src/bootleg/drawing.cc
 )
 target_link_libraries(bootleg
     PRIVATE bedl
@@ -109,6 +113,7 @@ target_link_libraries(bootleg
     PRIVATE Lua::Lua
     PRIVATE meu3
 )
+target_clangformat_setup(bootleg)
 if(WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Release")
     target_compile_options(bootleg
         PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/subsystem windows>

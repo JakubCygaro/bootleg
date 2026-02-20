@@ -1,5 +1,4 @@
 #include <bootleg/game.hpp>
-#include <iostream>
 #include <memory>
 #include <optional>
 #include <print>
@@ -11,11 +10,11 @@
 constexpr const float BUFFER_MARGIN = .05;
 
 using buffer_t = bed::TextBuffer;
-static void process_syntax(Color foreground, buffer_t::syntax_data_t& syntax, buffer_t::text_buffer_iterator tit, const buffer_t::text_buffer_iterator end);
+static void process_syntax(Color foreground, buffer_t::syntax_data_t& syntax,
+    buffer_t::text_buffer_iterator tit,
+    const buffer_t::text_buffer_iterator end);
 
-boot::EditorWindow::EditorWindow()
-{
-}
+boot::EditorWindow::EditorWindow() { }
 void boot::EditorWindow::update_bounds(void)
 {
     m_cube_bounds = {
@@ -71,10 +70,7 @@ void boot::EditorWindow::init(Game& game_state)
     m_slider.set_value(m_slider.get_max());
     update_bounds();
 }
-boot::EditorWindow::~EditorWindow()
-{
-    UnloadRenderTexture(m_render_tex);
-}
+boot::EditorWindow::~EditorWindow() { UnloadRenderTexture(m_render_tex); }
 void boot::EditorWindow::update(Game& game_state)
 {
     static bool cube_clicked = false;
@@ -84,14 +80,14 @@ void boot::EditorWindow::update(Game& game_state)
         game_state.saved_solution = std::nullopt;
     }
     const auto mouse = GetMousePosition();
-    cube_clicked = (CheckCollisionPointRec(mouse, m_cube_bounds) && IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
-        || (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && cube_clicked);
+    cube_clicked = (CheckCollisionPointRec(mouse, m_cube_bounds) && IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) || (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && cube_clicked);
     if (cube_clicked) {
         UpdateCamera(&m_camera, CAMERA_THIRD_PERSON);
     }
     if (IsKeyPressed(KEY_ENTER) && AnySpecialDown(SHIFT)) {
         m_output_buffer->clear();
-        if (auto err = game_state.load_source(m_text_buffer->get_contents_as_string()); err) {
+        if (auto err = game_state.load_source(m_text_buffer->get_contents_as_string());
+            err) {
             auto errstr = *err;
             m_output_buffer->insert_string(std::move(errstr));
         }
@@ -109,7 +105,8 @@ void boot::EditorWindow::update(Game& game_state)
         this->m_text_buffer->update_buffer();
     }
     if (IsKeyPressed(KEY_S) && AnySpecialDown(CONTROL)) {
-        game_state.save_source_for_current_level(m_text_buffer->get_contents_as_string());
+        game_state.save_source_for_current_level(
+            m_text_buffer->get_contents_as_string());
     }
     this->m_slider.update();
     this->m_output_buffer->update_buffer();
@@ -117,6 +114,37 @@ void boot::EditorWindow::update(Game& game_state)
 
 void boot::EditorWindow::draw(Game& game_state)
 {
+    const auto& cube = game_state.cube;
+    const auto brick_width = 1.0f;
+    const auto solution_brick_width = brick_width / 3;
+    using tooltip_info_t = std::optional<std::tuple<int, int, int>>;
+    tooltip_info_t tooltip_info = {};
+    const auto draw_solution_tooltip = [&, this](const int& x, const int& y,
+                                           const int& z,
+                                           const Vector3& pos) {
+        const BoundingBox bbox = {
+            .min = Vector3Subtract(
+                pos, Vector3Scale({ solution_brick_width, solution_brick_width, solution_brick_width }, 0.5)),
+            .max = Vector3Add(
+                pos, Vector3Scale({ solution_brick_width, solution_brick_width, solution_brick_width }, 0.5)),
+        };
+        const auto mouse = GetMousePosition();
+        const auto mouse_in_view = Vector2 { mouse.x - m_cube_bounds.x, mouse.y - m_cube_bounds.y };
+        const Vector2 mouse_in_view_prc = { mouse_in_view.x / m_cube_bounds.width,
+            mouse_in_view.y / m_cube_bounds.height };
+        const Vector2 mouse_in_view_real = {
+            m_render_tex_dims.x * mouse_in_view_prc.x,
+            m_render_tex_dims.y * mouse_in_view_prc.y
+        };
+        const auto ray = GetScreenToWorldRayEx(
+            mouse_in_view_real, m_camera, m_render_tex_dims.x, m_render_tex_dims.y);
+        const auto collision = GetRayCollisionBox(ray, bbox);
+        if (!collision.hit) {
+            return;
+        }
+        tooltip_info = { x, y, z };
+    };
+
     DrawRectangleGradientEx(m_bounds, RED, BLUE, RED, BLUE);
     this->m_text_buffer->draw();
     this->m_output_buffer->draw();
@@ -124,8 +152,6 @@ void boot::EditorWindow::draw(Game& game_state)
     BeginBlendMode(BLEND_ALPHA);
     ClearBackground(WHITE);
     BeginMode3D(m_camera);
-    const auto& cube = game_state.cube;
-    const auto brick_width = 1.0;
     const int layer = cube.y * m_slider.get_percentage() + 1;
     for (int x = 0; x < cube.x; x++) {
         for (int y = 0; y < cube.y && y < layer; y++) {
@@ -133,17 +159,15 @@ void boot::EditorWindow::draw(Game& game_state)
                 auto nx = x - ((cube.x - 1) * brick_width / 2);
                 auto nz = z - ((cube.z - 1) * brick_width / 2);
                 auto ny = y + brick_width / 2;
-                Color c = game_state.color_for(
-                    x,
-                    y,
-                    z);
+                Color c = game_state.color_for(x, y, z);
                 Vector3 pos = (Vector3) { (float)nx, (float)ny, (float)nz };
 
                 if (c.a == 255) {
                     if (game_state.get_lvl_data()) {
                         const auto s = game_state.get_lvl_data()->solution->color_data[x][y][z];
                         if ((c.r != s.r || c.g != s.g || c.b != s.b) && s.a != 0 && c.a != 0) {
-                            DrawCube(pos, brick_width / 3, brick_width / 3, brick_width / 3, RED);
+                            DrawCube(pos, solution_brick_width, solution_brick_width,
+                                solution_brick_width, RED);
                         } else {
                             DrawCube(pos, brick_width, brick_width, brick_width, c);
                         }
@@ -152,10 +176,13 @@ void boot::EditorWindow::draw(Game& game_state)
                     }
                 } else if (game_state.get_lvl_data()) {
                     const auto scolor = game_state.get_lvl_data()->solution->color_data[x][y][z];
-                    if (scolor.a)
-                        DrawCube(pos, brick_width / 3, brick_width / 3, brick_width / 3, { scolor.r, scolor.g, scolor.b, 255 });
+                    if (scolor.a) {
+                        DrawCube(pos, solution_brick_width, solution_brick_width,
+                            solution_brick_width, { scolor.r, scolor.g, scolor.b, 255 });
+                        draw_solution_tooltip(x, y, z, pos);
+                    }
                 }
-
+                // drawing of the grid numbers
                 char str[] = "";
                 int csz = 1;
                 if (y == 0 && z == 0) {
@@ -166,9 +193,9 @@ void boot::EditorWindow::draw(Game& game_state)
                     mark_pos.x -= sz.x / 2;
                     mark_pos.y = 0;
                     mark_pos.z -= sz.y * 2;
-                    boot::draw_codepoint_3d(c, game_state.font, mark_pos,
-                        0.8, boot::colors::X_AXIS,
-                        false, Rotation::x_axis(-90));
+                    boot::draw_codepoint_3d(c, game_state.font, mark_pos, 0.8,
+                        boot::colors::X_AXIS, false,
+                        Rotation::x_axis(-90));
                 }
                 if (y == 0 && x == 0) {
                     str[0] = '0' + z;
@@ -178,9 +205,9 @@ void boot::EditorWindow::draw(Game& game_state)
                     mark_pos.x -= sz.y * 2;
                     mark_pos.y = 0;
                     mark_pos.z -= sz.x / 2;
-                    boot::draw_codepoint_3d(c, game_state.font, mark_pos,
-                        0.8, boot::colors::Z_AXIS,
-                        false, Rotation::x_axis(-90));
+                    boot::draw_codepoint_3d(c, game_state.font, mark_pos, 0.8,
+                        boot::colors::Z_AXIS, false,
+                        Rotation::x_axis(-90));
                 }
                 if (z == 0 && x == 0) {
                     str[0] = '0' + y;
@@ -191,9 +218,9 @@ void boot::EditorWindow::draw(Game& game_state)
                     mark_pos.y += sz.y / 2;
                     mark_pos.x -= brick_width + sz.x / 2;
                     mark_pos.z -= brick_width;
-                    boot::draw_codepoint_3d(c, game_state.font, mark_pos,
-                        0.8, boot::colors::Y_AXIS,
-                        false, Rotation::y_axis(45));
+                    boot::draw_codepoint_3d(c, game_state.font, mark_pos, 0.8,
+                        boot::colors::Y_AXIS, false,
+                        Rotation::y_axis(45));
                 }
             }
         }
@@ -201,27 +228,33 @@ void boot::EditorWindow::draw(Game& game_state)
     DrawGrid(5, 5);
     constexpr const auto axis_len = 20;
     const Vector3 axis_center = { -2 * 5., 0, -2 * 5. };
-    DrawLine3D(axis_center, Vector3Add(axis_center, { axis_len, 0, 0 }), boot::colors::X_AXIS);
-    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, axis_len, 0 }), boot::colors::Y_AXIS);
-    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 0, axis_len }), boot::colors::Z_AXIS);
+    DrawLine3D(axis_center, Vector3Add(axis_center, { axis_len, 0, 0 }),
+        boot::colors::X_AXIS);
+    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, axis_len, 0 }),
+        boot::colors::Y_AXIS);
+    DrawLine3D(axis_center, Vector3Add(axis_center, { 0, 0, axis_len }),
+        boot::colors::Z_AXIS);
 
     constexpr const auto axis_mark_size = 5;
     int csz = 1;
     int c = GetCodepoint("X", &csz);
     auto sz = boot::measure_codepoint_3d(c, game_state.font, axis_mark_size);
-    boot::draw_codepoint_3d(c, game_state.font, { axis_center.x + axis_len - sz.x, axis_center.y + sz.y, axis_center.z },
-        axis_mark_size, boot::colors::X_AXIS,
-        false);
+    boot::draw_codepoint_3d(
+        c, game_state.font,
+        { axis_center.x + axis_len - sz.x, axis_center.y + sz.y, axis_center.z },
+        axis_mark_size, boot::colors::X_AXIS, false);
     c = GetCodepoint("Z", &csz);
     sz = boot::measure_codepoint_3d(c, game_state.font, axis_mark_size);
-    boot::draw_codepoint_3d(c, game_state.font, { axis_center.x, axis_center.y + sz.y, axis_center.z + axis_len },
-        axis_mark_size, boot::colors::Z_AXIS,
-        false, Rotation::y_axis(90));
+    boot::draw_codepoint_3d(
+        c, game_state.font,
+        { axis_center.x, axis_center.y + sz.y, axis_center.z + axis_len },
+        axis_mark_size, boot::colors::Z_AXIS, false, Rotation::y_axis(90));
     c = GetCodepoint("Y", &csz);
     sz = boot::measure_codepoint_3d(c, game_state.font, axis_mark_size);
-    boot::draw_codepoint_3d(c, game_state.font, { axis_center.x + 0.5f, axis_center.y + axis_len, axis_center.z },
-        axis_mark_size, boot::colors::Y_AXIS,
-        false, Rotation::none());
+    boot::draw_codepoint_3d(
+        c, game_state.font,
+        { axis_center.x + 0.5f, axis_center.y + axis_len, axis_center.z },
+        axis_mark_size, boot::colors::Y_AXIS, false, Rotation::none());
 
     EndMode3D();
     EndBlendMode();
@@ -232,13 +265,15 @@ void boot::EditorWindow::draw(Game& game_state)
         .width = m_render_tex_dims.x,
         .height = -m_render_tex_dims.y,
     };
-    DrawTexturePro(m_render_tex.texture,
-        src,
-        m_cube_bounds,
-        Vector2Zero(),
-        0,
+    DrawTexturePro(m_render_tex.texture, src, m_cube_bounds, Vector2Zero(), 0,
         WHITE);
     this->m_slider.draw();
+    if (tooltip_info) {
+        const auto txt = std::format("({},{},{})", std::get<0>(*tooltip_info),
+            std::get<1>(*tooltip_info), std::get<2>(*tooltip_info));
+        boot::draw_cursor_tooltip(txt.c_str(), game_state.font, 20, 10, m_bounds,
+            BLACK);
+    }
 }
 const char* boot::EditorWindow::get_window_name()
 {
@@ -257,11 +292,12 @@ void boot::EditorWindow::on_config_reload(const Config& conf)
         m_text_buffer->background_color = conf.background_color;
         m_text_buffer->set_font_size(conf.font_size);
         m_text_buffer->wrap_lines(conf.wrap_lines);
-        if (conf.syntax_highlighting){
-            auto ps = std::bind(process_syntax, conf.foreground_color, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        if (conf.syntax_highlighting) {
+            auto ps = std::bind(process_syntax, conf.foreground_color,
+                std::placeholders::_1, std::placeholders::_2,
+                std::placeholders::_3);
             m_text_buffer->set_syntax_parser(ps);
-        }
-        else
+        } else
             m_text_buffer->set_syntax_parser(nullptr);
     }
 }
@@ -280,7 +316,7 @@ static const Color KEYWORD_PURPLE = boot::decode_color_from_hex(0xC185BCFF);
 static const Color KEYWORD_BLUE = boot::decode_color_from_hex(0x4194D4FF);
 static const Color COLOR = boot::decode_color_from_hex(0x4EC37FFF);
 static const Color BUILT_IN_FUNCTION = boot::decode_color_from_hex(0xd6b97dFF);
-};
+}; // namespace tokens
 
 static std::optional<Color> match_literal(const std::string_view lit)
 {
@@ -321,8 +357,7 @@ static bool hex_dig_check(char c)
     };
 };
 
-static void process_syntax(Color foreground,
-    buffer_t::syntax_data_t& syntax,
+static void process_syntax(Color foreground, buffer_t::syntax_data_t& syntax,
     buffer_t::text_buffer_iterator tit,
     const buffer_t::text_buffer_iterator end)
 {
@@ -370,8 +405,8 @@ static void process_syntax(Color foreground,
                 //     dig_has_x = true;
                 //     continue;
                 // }
-                // const auto is_valid_hex = (dig_has_x && hex_dig_check(ch)) || !dig_has_x;
-                // if (!std::isdigit(ch) && !is_valid_hex) {
+                // const auto is_valid_hex = (dig_has_x && hex_dig_check(ch)) ||
+                // !dig_has_x; if (!std::isdigit(ch) && !is_valid_hex) {
                 //     goto skip_pos_increment;
                 // }
                 if (!std::isdigit(ch)) {

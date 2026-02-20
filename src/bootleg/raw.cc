@@ -84,14 +84,15 @@ static Color read_color(const std::string_view sv)
         std::from_chars(sv.begin() + 2, sv.end(), v, 16);
         return boot::decode_color_from_hex(v);
     }
-    if(boot::colors::COLORMAP.contains(sv)){
+    if (boot::colors::COLORMAP.contains(sv)) {
         return boot::colors::COLORMAP.at(sv);
     }
 
     return BLANK;
 }
 /// a chunk is the part of the data section that represents the sigular Y level
-/// while a slice is a single line of a chunk, that is terminated by a newline character
+/// while a slice is a single line of a chunk, that is terminated by a newline
+/// character
 static std::vector<Color> read_chunk_slice(std::string_view slice)
 {
     std::vector<Color> ret;
@@ -174,4 +175,4 @@ LevelData parse_level_data(std::string&& src, bool skip_data_section)
     }
     return lvl;
 }
-}
+} // namespace boot::raw

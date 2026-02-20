@@ -30,16 +30,21 @@ void boot::Game::init()
     MEU3_Error err = NoError;
     meu3_pack = meu3_load_package(path::GAME_DATA_PATH.data(), &err);
     if (err != NoError) {
-        throw std::runtime_error(std::format("Failed to load gamedata meu3 package at `{}`, error code {}", path::GAME_DATA_PATH, (int)err));
+        throw std::runtime_error(std::format(
+            "Failed to load gamedata meu3 package at `{}`, error code {}",
+            path::GAME_DATA_PATH, (int)err));
     }
     unsigned long long len = 0;
-    MEU3_BYTES font = meu3_package_get_data_ptr(meu3_pack, path::RESOURCES_FONT.data(), &len, &err);
+    MEU3_BYTES font = meu3_package_get_data_ptr(
+        meu3_pack, path::RESOURCES_FONT.data(), &len, &err);
     if (err != NoError || !font) {
-        TraceLog(LOG_ERROR, "Failed to get pointer to font data at `%s`", path::RESOURCES_FONT.data());
+        TraceLog(LOG_ERROR, "Failed to get pointer to font data at `%s`",
+            path::RESOURCES_FONT.data());
     } else {
         Font f = LoadFontFromMemory(".ttf", font, len, 100, NULL, 0);
         if (f.texture.id <= 0) {
-            TraceLog(LOG_ERROR, "Failed to load font from resources at `%s`", path::RESOURCES_FONT.data());
+            TraceLog(LOG_ERROR, "Failed to load font from resources at `%s`",
+                path::RESOURCES_FONT.data());
         } else {
             SetTextureFilter(f.texture, TEXTURE_FILTER_ANISOTROPIC_8X);
             this->font = f;
@@ -65,10 +70,7 @@ void boot::Game::init()
     auto crw = std::make_unique<boot::CreditsWindow>();
     crw->set_bounds(w->get_bounds());
 
-    auto wd = WindowData {
-        .win = std::move(lw),
-        .name_bounds = {}
-    };
+    auto wd = WindowData { .win = std::move(lw), .name_bounds = {} };
     this->windows.push_back(std::move(wd));
     wd.win = std::move(w);
     this->windows.push_back(std::move(wd));
@@ -87,13 +89,18 @@ void boot::Game::init()
     update_measurements();
 
     len = 0;
-    if (auto user_conf = (char*)meu3_package_get_data_ptr(meu3_pack, path::USER_CONFIG.data(), &len, &err); user_conf) {
+    if (auto user_conf = (char*)meu3_package_get_data_ptr(
+            meu3_pack, path::USER_CONFIG.data(), &len, &err);
+        user_conf) {
         auto conf = std::string(user_conf, len);
         reload_configuration(std::move(conf));
     } else {
-        auto def_conf = (const char*)meu3_package_get_data_ptr(meu3_pack, path::DEF_CONFIG.data(), &len, &err);
+        auto def_conf = (const char*)meu3_package_get_data_ptr(
+            meu3_pack, path::DEF_CONFIG.data(), &len, &err);
         if (err != NoError) {
-            TraceLog(LOG_ERROR, "Error while trying to get a ref for default config on game init");
+            TraceLog(
+                LOG_ERROR,
+                "Error while trying to get a ref for default config on game init");
         } else {
             auto conf = std::string(def_conf, len);
             reload_configuration(std::move(conf));
@@ -108,7 +115,8 @@ static void setup_colors(lua_State* lua)
         hex[2] = col.g;
         hex[1] = col.b;
         hex[0] = col.a;
-        boot::lua::setglobalv(lua, name.data(), *reinterpret_cast<unsigned int*>(&hex));
+        boot::lua::setglobalv(lua, name.data(),
+            *reinterpret_cast<unsigned int*>(&hex));
     };
     for (const auto& [k, v] : boot::colors::COLORMAP) {
         add_color(k, v);
@@ -174,10 +182,7 @@ void boot::Game::update_measurements(void)
         const auto name = window.win->get_window_name();
         const auto tmpsz = MeasureTextEx(font, name, window_bar_h, WINDOW_NAME_FONT_SPACING);
         window.name_bounds = {
-            .x = offset,
-            .y = 0,
-            .width = tmpsz.x,
-            .height = tmpsz.y
+            .x = offset, .y = 0, .width = tmpsz.x, .height = tmpsz.y
         };
         offset += tmpsz.x + padding;
         window.win->set_bounds({
@@ -231,9 +236,11 @@ void boot::Game::draw()
             back.x -= m_dims.x * 0.01;
             back.width += m_dims.x * 0.02;
             DrawRectangleRec(back, WHITE);
-            DrawTextEx(font, name, { name_bounds.x, name_bounds.y }, window_bar_h, WINDOW_NAME_FONT_SPACING, BLUE);
+            DrawTextEx(font, name, { name_bounds.x, name_bounds.y }, window_bar_h,
+                WINDOW_NAME_FONT_SPACING, BLUE);
         } else {
-            DrawTextEx(font, name, { name_bounds.x, name_bounds.y }, window_bar_h, WINDOW_NAME_FONT_SPACING, WHITE);
+            DrawTextEx(font, name, { name_bounds.x, name_bounds.y }, window_bar_h,
+                WINDOW_NAME_FONT_SPACING, WHITE);
         }
     }
     EndDrawing();
@@ -266,8 +273,7 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
                 lua::setglobalv(m_lua_state, "z", z);
                 if (luaL_dostring(m_lua_state, source.data())) {
                     auto* err = lua_tostring(m_lua_state, -1);
-                    std::printf("pcall failed : %s\n",
-                        err);
+                    std::printf("pcall failed : %s\n", err);
                     level_completed = false;
                     return err;
                 }
@@ -277,7 +283,8 @@ std::optional<std::string> boot::Game::load_source(const std::string& source)
                     return a.r == b.r && a.b == b.b && a.g == b.g && a.a == b.a;
                 };
                 if (m_solution.has_value())
-                    level_completed &= color_eq(cube.color_data[x][y][z], m_solution->solution->color_data[x][y][z]);
+                    level_completed &= color_eq(cube.color_data[x][y][z],
+                        m_solution->solution->color_data[x][y][z]);
             }
         }
     }
@@ -294,15 +301,19 @@ void Game::preload_lua_level(Level& lvl)
         return;
     init_lua_state();
     auto data = raw::LevelData {};
-    auto error = luaL_loadbuffer(m_lua_state, reinterpret_cast<const char*>(lvl.data_ptr), lvl.data_len, NULL);
+    auto error = luaL_loadbuffer(m_lua_state, reinterpret_cast<const char*>(lvl.data_ptr),
+        lvl.data_len, NULL);
     if (error != LUA_OK) {
-        TraceLog(LOG_ERROR, "Error while preloading lua levelgen script\n%s", lua_tostring(m_lua_state, -1));
+        TraceLog(LOG_ERROR, "Error while preloading lua levelgen script\n%s",
+            lua_tostring(m_lua_state, -1));
         goto crash_and_burn;
     }
     try {
         lua::voidpcall(m_lua_state, NULL);
     } catch (const std::runtime_error& err) {
-        TraceLog(LOG_ERROR, "Error while running lua levelgen script for preload\n%s", err.what());
+        TraceLog(LOG_ERROR,
+            "Error while running lua levelgen script for preload\n%s",
+            err.what());
         goto crash_and_burn;
     }
     data.X = lua::getglobalv<int>(m_lua_state, "X").value_or(-1);
@@ -325,22 +336,29 @@ void Game::load_level(const Level& lvl, std::string name)
     const auto saved_path = std::format("{}/{}", path::USER_SOLUTIONS_DIR, name);
     if (lvl.ty == Level::Type::Lua) {
         init_lua_state();
-        auto error = luaL_loadbuffer(m_lua_state, reinterpret_cast<const char*>(lvl.data_ptr), lvl.data_len, NULL);
+        auto error = luaL_loadbuffer(m_lua_state,
+            reinterpret_cast<const char*>(lvl.data_ptr),
+            lvl.data_len, NULL);
         if (error != LUA_OK) {
-            TraceLog(LOG_ERROR, "Error while loading lua levelgen script\n%s", lua_tostring(m_lua_state, -1));
+            TraceLog(LOG_ERROR, "Error while loading lua levelgen script\n%s",
+                lua_tostring(m_lua_state, -1));
             goto crash_and_burn;
         }
         try {
             lua::voidpcall(m_lua_state, NULL);
         } catch (const std::runtime_error& err) {
-            TraceLog(LOG_ERROR, "Error while running lua levelgen script\n%s", err.what());
+            TraceLog(LOG_ERROR, "Error while running lua levelgen script\n%s",
+                err.what());
             goto crash_and_burn;
         }
         int x {}, y {}, z {};
         const auto get_dim = [&](const char* name, int& out) -> bool {
             auto v = lua::getglobalv<int>(m_lua_state, name);
             if (!v) {
-                TraceLog(LOG_ERROR, "Error while running lua levelgen script: variable '%s' was not an integer", name);
+                TraceLog(LOG_ERROR,
+                    "Error while running lua levelgen script: variable '%s' was "
+                    "not an integer",
+                    name);
                 return false;
             }
             out = v.value();
@@ -379,7 +397,8 @@ void Game::load_level(const Level& lvl, std::string name)
                     try {
                         lua::voidpcall(m_lua_state, "Generate");
                     } catch (const std::runtime_error& err) {
-                        TraceLog(LOG_ERROR, "Error while running lua levelgen script\n%s", err.what());
+                        TraceLog(LOG_ERROR, "Error while running lua levelgen script\n%s",
+                            err.what());
                     }
                     auto c = lua::getglobalv<unsigned int>(m_lua_state, "Color");
                     sol->color_data[x][y][z] = decode_color_from_hex(c.value_or(0));
@@ -397,9 +416,12 @@ void Game::load_level(const Level& lvl, std::string name)
     m_current_save_name = name;
     if (meu3_package_has(meu3_pack, saved_path.data(), &err)) {
         auto len = 0ull;
-        auto ptr = (char*)meu3_package_get_data_ptr(meu3_pack, saved_path.data(), &len, &err);
+        auto ptr = (char*)meu3_package_get_data_ptr(meu3_pack, saved_path.data(),
+            &len, &err);
         if (err != NoError) {
-            TraceLog(LOG_ERROR, "Error while trying to load a saved solution for level `%s`", saved_path.data());
+            TraceLog(LOG_ERROR,
+                "Error while trying to load a saved solution for level `%s`",
+                saved_path.data());
         } else {
             saved_solution = std::string(ptr, len);
         }
@@ -425,9 +447,12 @@ void Game::save_source_for_current_level(std::string&& solution)
 {
     const auto current_lvl_path = std::format("{}/{}", path::USER_SOLUTIONS_DIR, m_current_save_name);
     MEU3_Error err = NoError;
-    meu3_package_insert(meu3_pack, current_lvl_path.data(), reinterpret_cast<unsigned char*>(solution.data()), solution.size(), &err);
+    meu3_package_insert(meu3_pack, current_lvl_path.data(),
+        reinterpret_cast<unsigned char*>(solution.data()),
+        solution.size(), &err);
     if (err != NoError) {
-        TraceLog(LOG_ERROR, "Error while trying to save source for level `%s`", m_current_save_name.data());
+        TraceLog(LOG_ERROR, "Error while trying to save source for level `%s`",
+            m_current_save_name.data());
         return;
     }
     save_game_data();
@@ -437,16 +462,21 @@ bool Game::save_solution_for_current_level(std::string&& solution)
     const auto current_lvl_path = std::format("{}/{}", path::USER_COMPLETED_DIR, m_current_save_name);
     MEU3_Error err = NoError;
 
-    // check if a solution does not already exists and is shorter than the current one
+    // check if a solution does not already exists and is shorter than the current
+    // one
     unsigned long long len = 0;
-    if (auto sol = meu3_package_get_data_ptr(meu3_pack, current_lvl_path.data(), &len, &err);
+    if (auto sol = meu3_package_get_data_ptr(meu3_pack, current_lvl_path.data(),
+            &len, &err);
         sol && len <= solution.length()) {
         return false;
     }
     err = NoError;
-    meu3_package_insert(meu3_pack, current_lvl_path.data(), reinterpret_cast<unsigned char*>(solution.data()), solution.size(), &err);
+    meu3_package_insert(meu3_pack, current_lvl_path.data(),
+        reinterpret_cast<unsigned char*>(solution.data()),
+        solution.size(), &err);
     if (err != NoError) {
-        TraceLog(LOG_ERROR, "Error while trying to save solution for level `%s`", m_current_save_name.data());
+        TraceLog(LOG_ERROR, "Error while trying to save solution for level `%s`",
+            m_current_save_name.data());
         return false;
     }
     save_game_data();
@@ -469,13 +499,15 @@ void Game::reload_configuration(std::string&& config_source)
     if (auto c = lua::getglobalv<unsigned int>(m_lua_state, "ForeColor"); c) {
         conf.foreground_color = decode_color_from_hex(*c);
     }
-    if (auto c = lua::getglobalv<std::string>(m_lua_state, "ForeColor"); c && boot::colors::COLORMAP.contains(*c)) {
+    if (auto c = lua::getglobalv<std::string>(m_lua_state, "ForeColor");
+        c && boot::colors::COLORMAP.contains(*c)) {
         conf.foreground_color = boot::colors::COLORMAP.at(*c);
     }
     if (auto c = lua::getglobalv<unsigned int>(m_lua_state, "BackColor"); c) {
         conf.background_color = decode_color_from_hex(*c);
     }
-    if (auto c = lua::getglobalv<std::string>(m_lua_state, "BackColor"); c && boot::colors::COLORMAP.contains(*c)) {
+    if (auto c = lua::getglobalv<std::string>(m_lua_state, "BackColor");
+        c && boot::colors::COLORMAP.contains(*c)) {
         conf.background_color = boot::colors::COLORMAP.at(*c);
     }
     if (auto b = lua::getglobalv<bool>(m_lua_state, "WrapLines"); b) {
@@ -495,4 +527,4 @@ const std::optional<raw::LevelData>& Game::get_lvl_data(void)
 {
     return this->m_solution;
 }
-}
+} // namespace boot

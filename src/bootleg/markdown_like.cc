@@ -14,7 +14,8 @@ static const Color BRACKETS = HEADER_4;
 void boot::markdown_like_syntax_parser(Color foreground,
     buffer_t::syntax_data_t& syntax,
     buffer_t::text_buffer_iterator tit,
-    const buffer_t::text_buffer_iterator end){
+    const buffer_t::text_buffer_iterator end)
+{
     buffer_t::Cursor pos = tit.current_cursor_pos();
     for (; tit != end;) {
         pos = tit.current_cursor_pos();

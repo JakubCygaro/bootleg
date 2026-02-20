@@ -3,9 +3,7 @@
 #include <raylib.h>
 #include <raymath.h>
 namespace boot {
-CreditsWindow::CreditsWindow()
-{
-}
+CreditsWindow::CreditsWindow() { }
 void CreditsWindow::init(Game& game_state) { }
 void CreditsWindow::update(Game& game_state) { }
 void CreditsWindow::draw(Game& game_state)
@@ -25,7 +23,8 @@ void CreditsWindow::draw(Game& game_state)
         .y = dims.y / 2,
     };
     const auto back_pos = Vector2Subtract(center, Vector2Scale(back_dims, 0.5));
-    DrawRectangleRounded({back_pos.x, back_pos.y, back_dims.x, back_dims.y}, 0.3, 5, SKYBLUE);
+    DrawRectangleRounded({ back_pos.x, back_pos.y, back_dims.x, back_dims.y }, 0.3,
+        5, SKYBLUE);
 
     auto sz = MeasureTextEx(game_state.font, Bootleg, 60, 10);
     auto pos = center;
@@ -49,4 +48,4 @@ const char* CreditsWindow::get_window_name()
     return name.data();
 }
 CreditsWindow::~CreditsWindow() { }
-}
+} // namespace boot

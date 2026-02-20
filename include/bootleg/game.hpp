@@ -81,6 +81,7 @@ void markdown_like_syntax_parser(Color foreground,
     buffer_t::syntax_data_t& syntax,
     buffer_t::text_buffer_iterator tit,
     const buffer_t::text_buffer_iterator end);
+void draw_cursor_tooltip(const char* txt, Font font, float font_sz, float spacing, const Rectangle& bounds, Color color);
 
 struct Rotation {
     float angle {};

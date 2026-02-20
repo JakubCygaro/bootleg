@@ -4,9 +4,7 @@
 #include <raylib.h>
 #include <raymath.h>
 namespace boot {
-Slider::Slider()
-{
-}
+Slider::Slider() { }
 Slider::Slider(Rectangle bounds, double min, double max, double val)
     : m_bounds(bounds)
     , m_max_val(max)
@@ -14,60 +12,33 @@ Slider::Slider(Rectangle bounds, double min, double max, double val)
     , m_val(val)
 {
 }
-void Slider::set_vertical(void)
-{
-    m_type = Type::VERTICAL;
-}
-void Slider::set_horizontal(void)
-{
-    m_type = Type::HORIZONTAL;
-}
-bool Slider::is_vertiacal(void) const
-{
-    return m_type == Type::VERTICAL;
-}
+void Slider::set_vertical(void) { m_type = Type::VERTICAL; }
+void Slider::set_horizontal(void) { m_type = Type::HORIZONTAL; }
+bool Slider::is_vertiacal(void) const { return m_type == Type::VERTICAL; }
 void Slider::set_value(double val)
 {
     m_val = std::clamp(val, m_min_val, m_max_val);
 }
-double Slider::get_value(void) const
-{
-    return m_val;
-}
+double Slider::get_value(void) const { return m_val; }
 void Slider::set_max(double max)
 {
     m_max_val = max >= m_min_val ? max : m_max_val;
 }
-double Slider::get_max(void) const
-{
-    return m_max_val;
-}
+double Slider::get_max(void) const { return m_max_val; }
 void Slider::set_min(double min)
 {
     m_min_val = min <= m_max_val ? min : m_min_val;
 }
-double Slider::get_min(void) const
-{
-    return m_min_val;
-}
-double Slider::get_percentage(void) const{
-    return m_prop;
-}
-void Slider::set_bounds(Rectangle bounds)
-{
-    m_bounds = bounds;
-}
-Rectangle Slider::get_bounds(void) const
-{
-    return m_bounds;
-}
+double Slider::get_min(void) const { return m_min_val; }
+double Slider::get_percentage(void) const { return m_prop; }
+void Slider::set_bounds(Rectangle bounds) { m_bounds = bounds; }
+Rectangle Slider::get_bounds(void) const { return m_bounds; }
 constexpr const float slider_sz = 0.1f;
 void Slider::update()
 {
     const auto mouse = GetMousePosition();
     static bool active = false;
-    active = (CheckCollisionPointRec(mouse, m_bounds) && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-        || (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && active);
+    active = (CheckCollisionPointRec(mouse, m_bounds) && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) || (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && active);
     if (!active)
         return;
     const float slider_v = slider_sz * m_bounds.height;
@@ -107,4 +78,4 @@ void Slider::draw()
     }
     DrawRectangleRounded(slider, 0.2, 10, slider_color);
 }
-}
+} // namespace boot

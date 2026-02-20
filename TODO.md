@@ -1,4 +1,5 @@
 # TODO
+- dedect cube under cursor and give its coordinates and maybe color information as a tooltip
 - ADD LEVELS
 - do some code cleanup and optimizing with the buffer
 - special sequences for syntax highlighting, BLANK would cause the buffer to skip rendering

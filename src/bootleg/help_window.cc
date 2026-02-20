@@ -69,17 +69,13 @@ static Rectangle bounds_for_help_tbuf(const Rectangle& w_bounds)
     constexpr const float buf_margin = 0.05f;
     const float margin_w = w_bounds.width * buf_margin;
     const float margin_h = w_bounds.height * buf_margin;
-    return Rectangle {
-        .x = w_bounds.x + margin_w / 2,
+    return Rectangle { .x = w_bounds.x + margin_w / 2,
         .y = w_bounds.y + margin_h / 2,
         .width = (w_bounds.width) - (margin_w),
-        .height = (w_bounds.height) - (margin_h)
-    };
+        .height = (w_bounds.height) - (margin_h) };
 }
 namespace boot {
-HelpWindow::HelpWindow()
-{
-}
+HelpWindow::HelpWindow() { }
 void HelpWindow::init(Game& game_state)
 {
     m_help_buffer = std::make_unique<bed::TextBuffer>(game_state.font, Rectangle {});
@@ -89,10 +85,7 @@ void HelpWindow::init(Game& game_state)
     m_help_buffer->toggle_wrap_lines();
     m_help_buffer->toggle_cursor();
 }
-void HelpWindow::update(Game& game_state)
-{
-    m_help_buffer->update_buffer();
-}
+void HelpWindow::update(Game& game_state) { m_help_buffer->update_buffer(); }
 void HelpWindow::draw(Game& game_state)
 {
     DrawRectangleGradientEx(m_bounds, PINK, WHITE, PINK, WHITE);
@@ -115,11 +108,10 @@ void HelpWindow::on_config_reload(const Config& conf)
         m_help_buffer->foreground_color = conf.foreground_color;
         m_help_buffer->background_color = conf.background_color;
         using namespace std::placeholders;
-        m_help_buffer->set_syntax_parser(std::bind(boot::markdown_like_syntax_parser, conf.foreground_color, _1, _2, _3));
+        m_help_buffer->set_syntax_parser(std::bind(
+            boot::markdown_like_syntax_parser, conf.foreground_color, _1, _2, _3));
         m_help_buffer->update_syntax();
     }
 }
-HelpWindow::~HelpWindow()
-{
-}
-}
+HelpWindow::~HelpWindow() { }
+} // namespace boot
