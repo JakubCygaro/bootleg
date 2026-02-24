@@ -155,6 +155,13 @@ void boot::Game::init_lua_state(void)
     }
     m_lua_state = luaL_newstate();
     luaL_openlibs(m_lua_state);
+    lua::setglobalv(m_lua_state, "io", LUA_TNIL);
+    lua::setglobalv(m_lua_state, "table", LUA_TNIL);
+    lua::setglobalv(m_lua_state, "string", LUA_TNIL);
+    lua::setglobalv(m_lua_state, "os", LUA_TNIL);
+    lua::setglobalv(m_lua_state, "debug", LUA_TNIL);
+    lua::setglobalv(m_lua_state, "print", LUA_TNIL);
+
     lua_createtable(m_lua_state, 0, 1);
     lua_pushstring(m_lua_state, "fromRGB");
     lua_pushcfunction(m_lua_state, l_color__from_parts);
